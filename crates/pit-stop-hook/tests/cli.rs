@@ -72,11 +72,13 @@ fn stalled_stdin_does_not_stall_agent() {
 #[test]
 fn authenticated_transport_is_redacted_and_does_not_wait_for_slow_receiver() {
     for infer_commands in [true, false] {
-        check_transport(infer_commands);
+        for bom in [false, true] {
+            check_transport(infer_commands, bom);
+        }
     }
 }
 
-fn check_transport(infer_commands: bool) {
+fn check_transport(infer_commands: bool, bom: bool) {
     use pit_stop_core::{
         security::{write_runtime, RuntimeDescriptor},
         Event, Operation,
@@ -105,6 +107,11 @@ fn check_transport(infer_commands: bool) {
         // Deliberately never send an HTTP response.
     });
     let start = Instant::now();
+    let mut input = Vec::new();
+    if bom {
+        input.extend_from_slice(b"\xEF\xBB\xBF");
+    }
+    input.extend_from_slice(include_bytes!("../../../fixtures/cursor/pre-tool-use.json"));
     let output = invoke(
         &[
             "hook",
@@ -115,7 +122,7 @@ fn check_transport(infer_commands: bool) {
             "--runtime",
             path.to_str().unwrap(),
         ],
-        include_bytes!("../../../fixtures/cursor/pre-tool-use.json"),
+        &input,
     );
     assert!(start.elapsed() < Duration::from_secs(2));
     assert!(output.status.success());

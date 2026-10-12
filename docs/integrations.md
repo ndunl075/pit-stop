@@ -127,7 +127,20 @@ codes and aggregate session results, not provider payloads or credentials.
 
 This verifies that narrow Claude flow on the tested Windows/Git Bash installation;
 it does not certify every provider version, subagent flow, PowerShell-only setup,
-or renderer behavior. Real Cursor validation is pending: the official Windows
-CLI 2026.10.01-e373342 was extracted into an isolated test directory, but reports
-unauthenticated and does not share the editor's login. No Cursor model session,
-global installation, PATH change or new account setup was performed.
+or renderer behavior.
+
+## Real Cursor validation
+
+The official Windows CLI 2026.10.01-e373342 was extracted into an isolated test
+directory and signed into the existing account. Project hooks are discovered
+from the Git root; the disposable fixture used its own repository to load the
+installer-generated configuration. The official Windows payload pipeline adds
+a UTF-8 BOM, which the helper now accepts after its existing input-size check.
+An exact-pipeline preflight and a genuine Read-only session delivered session
+start, inspect start/success and session end with HTTP 202. Cursor exited zero
+and the fixture remained unchanged. The helper path included Unicode, spaces
+and an apostrophe. No global installation, PATH change or persistent provider
+configuration change was made; disposable transcripts and runtime credentials
+were removed. Earlier real edit/failure callbacks ran before the BOM fix and
+their event delivery is not verified. No stop callback occurred, so this test
+does not verify Cursor turn completion, subagents or every failure scenario.
