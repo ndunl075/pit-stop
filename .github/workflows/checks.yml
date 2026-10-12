@@ -17,6 +17,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - run: pnpm install --frozen-lockfile
       - run: pnpm test
+      - run: pnpm test:visual:install
+      - run: pnpm test:visual
       - run: pnpm build
       - run: node scripts/package-helper.mjs
       - run: cargo test --workspace --locked

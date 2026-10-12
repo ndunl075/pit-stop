@@ -4,9 +4,10 @@ This file records observed checks, not compatibility promises.
 
 | Area | Evidence |
 | --- | --- |
-| Native workspace | Core sanitization/classification, runtime ACL, helper fail-open, installer preservation, receiver auth/body bounds and session lifecycle tests |
+| Native workspace | 45 regular tests pass: sanitization/classification, runtime ACL and lock contention, helper fail-open, installer preservation/migration, navigation, receiver auth/body bounds and sessions |
 | Frontend | 21 Vitest scheduler/reducer/demo/scene-loop/lifecycle tests; TypeScript and Vite production build |
 | Scene | Browser inspection of original artwork, compact layout, settings and reduced motion |
+| Visual regression | Five Playwright tests pass against 16 reviewed Windows baselines: eleven operation stages, compact/capture layouts, reduced motion and normal-clock pause/resume. Browser rendering only; no native FPS claim. |
 | Native distribution | Optimized Windows executable and NSIS installer built using locked dependencies; per-user test installation contains helper and license resources; installed app returned HTTP 202; uninstaller removed test application |
 | Receiver load | 6,000 authenticated requests in 60.01 seconds (100/s); bounded 200 history and 8 sessions; no retained active tools or rejected requests |
 | Helper latency | Release Cursor launcher tested with Unicode, spaces and apostrophe path; observed p95 68 ms in 10 launches |

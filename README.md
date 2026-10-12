@@ -49,6 +49,8 @@ pnpm install --frozen-lockfile
 node scripts/package-helper.mjs
 cargo test --workspace --locked
 pnpm test
+pnpm test:visual:install
+pnpm test:visual
 pnpm build
 pnpm --filter desktop tauri dev
 ```
