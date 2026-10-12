@@ -92,9 +92,14 @@ pub fn write_runtime(path: &Path, runtime: &RuntimeDescriptor) -> io::Result<()>
         #[cfg(windows)]
         {
             use std::os::windows::fs::OpenOptionsExt;
-            // GENERIC_READ | GENERIC_WRITE | READ_CONTROL | WRITE_DAC, needed to install
-            // and verify the ACL before any secret is written to this newly created file.
-            options.access_mode(0xc0060000);
+            use windows_sys::Win32::{
+                Foundation::{GENERIC_READ, GENERIC_WRITE},
+                Storage::FileSystem::{READ_CONTROL, WRITE_DAC, WRITE_OWNER},
+            };
+            // Elevated tokens may default to Administrators as the file owner. Request
+            // WRITE_OWNER so restrict can assign TokenUser before writing any secret.
+            options
+                .access_mode(GENERIC_READ | GENERIC_WRITE | READ_CONTROL | WRITE_DAC | WRITE_OWNER);
         }
         let mut file = options.open(&temp)?;
         platform::restrict(&file)?;
@@ -237,8 +242,10 @@ mod platform {
             let code = SetSecurityInfo(
                 file.as_raw_handle(),
                 SE_FILE_OBJECT,
-                DACL_SECURITY_INFORMATION | PROTECTED_DACL_SECURITY_INFORMATION,
-                ptr::null_mut(),
+                OWNER_SECURITY_INFORMATION
+                    | DACL_SECURITY_INFORMATION
+                    | PROTECTED_DACL_SECURITY_INFORMATION,
+                sid,
                 ptr::null_mut(),
                 dacl,
                 ptr::null_mut(),
@@ -289,6 +296,89 @@ mod platform {
                 return Err(invalid());
             }
             Ok(())
+        }
+    }
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+        use std::os::windows::fs::OpenOptionsExt;
+        use windows_sys::Win32::{
+            Foundation::{GENERIC_READ, GENERIC_WRITE},
+            Storage::FileSystem::{READ_CONTROL, WRITE_DAC, WRITE_OWNER},
+        };
+
+        #[test]
+        fn restrict_replaces_token_default_owner_and_rejects_public_acl() {
+            let directory = tempfile::tempdir().unwrap();
+            let file = OpenOptions::new()
+                .create_new(true)
+                .read(true)
+                .write(true)
+                .access_mode(GENERIC_READ | GENERIC_WRITE | READ_CONTROL | WRITE_DAC | WRITE_OWNER)
+                .open(directory.path().join("owner-regression.json"))
+                .unwrap();
+            // Reproduce the process token's default owner explicitly. This is the user's
+            // SID on ordinary accounts, but Administrators on elevated Windows CI tokens.
+            // A public DACL also proves restriction still rejects other principals.
+            unsafe {
+                let mut token = ptr::null_mut();
+                assert_ne!(
+                    OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &mut token),
+                    0
+                );
+                let mut size = 0;
+                GetTokenInformation(token, TokenOwner, ptr::null_mut(), 0, &mut size);
+                let mut owner =
+                    vec![0usize; (size as usize).div_ceil(std::mem::size_of::<usize>())];
+                let success = GetTokenInformation(
+                    token,
+                    TokenOwner,
+                    owner.as_mut_ptr().cast(),
+                    size,
+                    &mut size,
+                );
+                CloseHandle(token);
+                assert_ne!(success, 0);
+                let default_owner = (*(owner.as_ptr() as *const TOKEN_OWNER)).Owner;
+                let sddl: Vec<u16> = "D:P(A;;FA;;;WD)".encode_utf16().chain(Some(0)).collect();
+                let mut descriptor = ptr::null_mut();
+                assert_ne!(
+                    ConvertStringSecurityDescriptorToSecurityDescriptorW(
+                        sddl.as_ptr(),
+                        1,
+                        &mut descriptor,
+                        ptr::null_mut()
+                    ),
+                    0
+                );
+                let _guard = Allocation(descriptor);
+                let mut dacl = ptr::null_mut();
+                let mut present = 0;
+                let mut defaulted = 0;
+                assert_ne!(
+                    GetSecurityDescriptorDacl(descriptor, &mut present, &mut dacl, &mut defaulted),
+                    0
+                );
+                assert_eq!(
+                    SetSecurityInfo(
+                        file.as_raw_handle(),
+                        SE_FILE_OBJECT,
+                        OWNER_SECURITY_INFORMATION
+                            | DACL_SECURITY_INFORMATION
+                            | PROTECTED_DACL_SECURITY_INFORMATION,
+                        default_owner,
+                        ptr::null_mut(),
+                        dacl,
+                        ptr::null_mut()
+                    ),
+                    0
+                );
+            }
+            assert!(check(&file).is_err(), "a public DACL must remain invalid");
+            restrict(&file).unwrap();
+            check(&file).expect(
+                "restriction must explicitly select TokenUser ownership and its sole allow ACE",
+            );
         }
     }
 }
