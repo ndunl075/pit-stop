@@ -12,17 +12,18 @@ import type { PitStopEvent } from "../contracts/events";
 import type { Settings } from "../state/settingsStore";
 import { TimelineScheduler } from "./TimelineScheduler";
 import { SceneLoop } from "./SceneLoop";
-import { catalog, type ClipId } from "./AnimationCatalog";
+import type { ClipId } from "./AnimationCatalog";
+import { MotionTimeline, carPose, crewPose } from "./MotionTimeline";
 export interface SceneOptions {
   reduced: boolean;
   paused: boolean;
   fps: 30 | 60;
   theme: Settings["theme"];
 }
-const ease = (x: number) => 1 - Math.pow(1 - Math.max(0, Math.min(1, x)), 3);
 export class PitLaneScene {
   app = new Application();
   scheduler = new TimelineScheduler();
+  motion = new MotionTimeline();
   root = new Container();
   car = new Container();
   crew: Sprite[] = [];
@@ -58,8 +59,10 @@ export class PitLaneScene {
     const changed =
       value.size !== this.running.size ||
       [...value].some((x) => !this.running.has(x));
+    this.motion.sync(this.scheduler.active, this.running, this.clock);
     this.running = value;
     this.scheduler.syncOperations(value, this.clock);
+    this.motion.sync(this.scheduler.active, this.running, this.clock);
     if (changed) this.loop?.wake();
   }
   async init(host: HTMLElement) {
@@ -254,7 +257,9 @@ export class PitLaneScene {
   };
   event(e: PitStopEvent, presentationTime = this.loop?.time() ?? this.clock) {
     this.clock = presentationTime;
+    this.motion.sync(this.scheduler.active, this.running, this.clock);
     this.scheduler.push(e, this.clock);
+    this.motion.sync(this.scheduler.active, this.running, this.clock);
     if (e.kind === "session.start" || e.kind === "tool.start") {
       this.carVisible = true;
       this.releasePending = false;
@@ -273,6 +278,7 @@ export class PitLaneScene {
   }
   reset() {
     this.scheduler.reset();
+    this.motion.reset();
     this.runningOperations.clear();
     this.carVisible = false;
     this.releasePending = false;
@@ -283,7 +289,9 @@ export class PitLaneScene {
   frame = (clock: number, dirty: boolean) => {
     this.clock = clock;
     const before = this.scheduler.active.map((x) => x.event.event_id).join("|");
+    this.motion.sync(this.scheduler.active, this.running, this.clock);
     const active = this.scheduler.tick(this.clock);
+    this.motion.sync(active, this.running, this.clock);
     if (
       this.releasePending &&
       !active.some((entry) => entry.clip.id === "release")
@@ -297,36 +305,33 @@ export class PitLaneScene {
     return {
       animate:
         !this.options.reduced &&
-        (active.length > 0 || this.runningOperations.size > 0),
+        (active.length > 0 ||
+          this.runningOperations.size > 0 ||
+          this.motion.hasTail(this.clock)),
       wakeAfter: this.scheduler.nextTransition(this.clock),
     };
   };
   render() {
-    const active = this.scheduler.active,
-      t = this.options.reduced ? 0 : this.clock / 1000,
-      has = (id: string) =>
-        active.some((x) => x.clip.id === id) ||
-        (this.runningOperations.has(id) &&
-          !active.some((x) =>
-            x.clip.resources.some((resource) =>
-              catalog[id as ClipId]?.resources.includes(resource),
-            ),
-          )),
-      clip = active.find(
-        (x) => x.clip.id === "arrive" || x.clip.id === "release",
-      ),
-      progress = clip
-        ? Math.min(1, (this.clock - clip.started) / clip.clip.duration)
-        : 0;
+    const active = this.scheduler.active;
+    const reduced = this.options.reduced;
+    const t = reduced ? 0 : this.clock / 1000;
+    const amount = (id: ClipId, delay = 100) =>
+      this.motion.amount([id], this.clock, reduced, delay, 420, 420);
+    const has = (id: ClipId) => this.motion.amount([id], this.clock, true) > 0;
+    const clip = active.find(
+      (entry) => entry.clip.id === "arrive" || entry.clip.id === "release",
+    );
+    const progress = clip
+      ? (this.clock - clip.started) / clip.clip.duration
+      : 0;
+    const pose = carPose(
+      clip?.clip.id as "arrive" | "release" | undefined,
+      progress,
+      reduced,
+    );
     this.car.visible = this.carVisible;
-    this.car.x = 480;
-    this.car.y = 299 + (has("shell") && !this.options.reduced ? -4 : 0);
-    this.car.rotation = 0;
-    if (clip && !this.options.reduced)
-      this.car.x =
-        clip.clip.id === "arrive"
-          ? -250 + 730 * ease(progress)
-          : 480 + 1000 * progress * progress;
+    this.car.position.set(pose.x, pose.y - 4 * amount("shell"));
+    this.car.rotation = pose.rotation;
     if (clip?.clip.id === "release") this.board.text = "TURN FINISHED";
     else if (has("warning")) this.board.text = "! TOOL FAILED";
     else if (has("test")) this.board.text = "CHECKING…";
@@ -338,78 +343,123 @@ export class PitLaneScene {
     else if (has("delegate")) this.board.text = "CREW JOINED";
     else if (this.carVisible && this.board.text !== "TURN FINISHED")
       this.board.text = "STAND BY";
-    const positions = [
-      [360, 219],
-      [575, 220],
-      [363, 367],
-      [575, 368],
-      [693, 293],
-      [274, 183],
-      [718, 180],
-    ];
-    this.crew.forEach((c, i) => {
-      const work =
-        i < 4
-          ? has("edit") || has("test")
-          : i === 4
-            ? has("build") || has("shell")
-            : i === 5
-              ? has("inspect") || has("mcp")
-              : has("delegate");
-      const bob = work && !this.options.reduced ? Math.sin(t * 9 + i) * 3 : 0;
-      c.x = positions[i][0] + (work ? (i === 4 ? -31 : 0) : 0);
-      c.y = positions[i][1] + (work ? (i < 2 ? 19 : i < 4 ? -19 : 0) : 0) + bob;
-      c.rotation =
-        work && !this.options.reduced ? Math.sin(t * 7 + i) * 0.06 : 0;
-      c.alpha = i === 6 && !has("delegate") ? 0.38 : 1;
+    this.crew.forEach((crew, index) => {
+      const pose = crewPose(this.motion, index, this.clock, reduced);
+      crew.position.set(pose.x, pose.y);
+      crew.rotation = pose.rotation;
+      crew.alpha = pose.alpha;
     });
     const fx = this.effects;
     fx.clear();
-    if (has("edit") || has("test"))
-      for (const [x, y] of [
-        [386, 262],
-        [571, 262],
-        [386, 337],
-        [571, 337],
-      ]) {
-        fx.circle(x, y, 18).stroke({
-          color: has("test") ? 0x8aceda : 0xd3f295,
-          width: 2,
-          alpha: 0.75,
-        });
-        if (has("edit"))
-          fx.moveTo(x - 11, y)
-            .lineTo(x + 11, y)
-            .stroke({ color: 0xf3f3cc, width: 3 });
+    const edit = amount("edit", 300),
+      test = amount("test", 300);
+    const wheels = [
+      [386, 262],
+      [571, 262],
+      [386, 337],
+      [571, 337],
+    ];
+    for (let i = 0; i < wheels.length; i++) {
+      const [x, y] = wheels[i];
+      const opacity = 1 - (1 - edit) * (1 - test);
+      if (opacity <= 0) continue;
+      const pressure = reduced ? 0 : Math.sin(t * 2.8 + i * 0.8) * 1.3 * test;
+      fx.circle(x, y, 16 + 2 * opacity + pressure).stroke({
+        color: test > edit ? 0x8aceda : 0xd3f295,
+        width: 2,
+        alpha: opacity * 0.75,
+      });
+      if (edit > 0) {
+        const angle = reduced ? 0 : Math.sin(t * 4.5 + i * 0.55) * 0.8;
+        const dx = Math.cos(angle) * 11,
+          dy = Math.sin(angle) * 11;
+        fx.moveTo(x - dx, y - dy)
+          .lineTo(x + dx, y + dy)
+          .stroke({ color: 0xf3f3cc, width: 3, alpha: edit });
+        fx.circle(x, y, 3).fill({ color: 0xf3f3cc, alpha: edit });
       }
-    if (has("build")) {
-      fx.roundRect(635, 252, 9, 90, 2).fill(0xdaf39e);
-      fx.roundRect(647, 251, 7, 92, 2).fill(0xeffac8);
-      for (let i = 0; i < 4; i++) {
-        const a = t * 3 + i * 1.57;
-        fx.circle(650 + Math.cos(a) * 15, 293 + Math.sin(a) * 32, 2).fill(
-          0xe6e9bd,
-        );
+      if (test > 0) {
+        const angle = reduced ? -0.5 : -0.5 + Math.sin(t * 2 + i) * 0.45;
+        fx.moveTo(x, y)
+          .lineTo(x + Math.cos(angle) * 12, y + Math.sin(angle) * 12)
+          .stroke({ color: 0xc0edf0, width: 2, alpha: test });
       }
     }
-    if (has("shell"))
-      fx.poly([648, 303, 676, 303, 687, 339, 679, 342]).fill(0xc99c58);
-    if (has("mcp"))
-      for (let i = 0; i < 3; i++)
-        fx.circle(268, 175, 20 + i * 9).stroke({
+    const build = amount("build", 200);
+    if (build > 0) {
+      const approach = (1 - build) * 14;
+      const adjust = reduced ? 0 : Math.sin(t * 2.6) * 1.2 * build;
+      fx.roundRect(635 + approach, 252 + adjust, 9, 90, 2).fill({
+        color: 0xdaf39e,
+        alpha: build,
+      });
+      fx.roundRect(647 + approach, 251 - adjust, 7, 92, 2).fill({
+        color: 0xeffac8,
+        alpha: build,
+      });
+      for (let i = 0; i < 4; i++) {
+        const angle = t * 1.7 + (i * Math.PI) / 2;
+        fx.circle(
+          650 + Math.cos(angle) * 15,
+          293 + Math.sin(angle) * 32,
+          2,
+        ).fill({ color: 0xe6e9bd, alpha: build * 0.8 });
+      }
+    }
+    const jack = amount("shell");
+    if (jack > 0) {
+      const offset = (1 - jack) * 12;
+      fx.poly([
+        648 + offset,
+        303,
+        676 + offset,
+        303,
+        687 + offset,
+        339,
+        679 + offset,
+        342,
+      ]).fill({ color: 0xc99c58, alpha: jack });
+      const lift = reduced ? 0 : Math.sin(t * 2.4) * 3 * jack;
+      fx.moveTo(678 + offset, 325)
+        .lineTo(700 + offset, 309 + lift)
+        .stroke({ color: 0xe0ba77, width: 3, alpha: jack });
+    }
+    const radio = amount("mcp");
+    if (radio > 0)
+      for (let i = 0; i < 3; i++) {
+        const phase = reduced ? i / 3 : (t * 0.55 + i / 3) % 1;
+        // Zero alpha at both wrap endpoints makes each expanding wave seamless.
+        const opacity = reduced
+          ? 0.7 - i * 0.2
+          : Math.sin(phase * Math.PI) ** 2 * 0.7;
+        fx.circle(268, 175, 17 + phase * 30).stroke({
           color: 0x90d0d3,
           width: 2,
-          alpha: 0.7 - i * 0.2,
+          alpha: radio * opacity,
         });
-    if (has("warning")) {
-      fx.roundRect(714, 234, 54, 40, 7).fill(0xe5b46d);
-      fx.poly([741, 240, 727, 264, 755, 264]).fill(0x29332c);
-      fx.rect(739, 246, 4, 10).fill(0xe5b46d);
-      fx.circle(741, 260, 2).fill(0xe5b46d);
+      }
+    const warning = amount("warning", 0);
+    if (warning > 0) {
+      const y = (1 - warning) * 7;
+      fx.roundRect(714, 234 + y, 54, 40, 7).fill({
+        color: 0xe5b46d,
+        alpha: warning,
+      });
+      fx.poly([741, 240 + y, 727, 264 + y, 755, 264 + y]).fill({
+        color: 0x29332c,
+        alpha: warning,
+      });
+      fx.rect(739, 246 + y, 4, 10).fill({ color: 0xe5b46d, alpha: warning });
+      fx.circle(741, 260 + y, 2).fill({ color: 0xe5b46d, alpha: warning });
     }
-    if (has("release")) {
-      fx.circle(724, 310, 9).fill(0xccf284);
-      fx.circle(724, 310, 15).stroke({ color: 0xccf284, width: 2, alpha: 0.4 });
+    const release = amount("release", 0);
+    if (release > 0) {
+      fx.circle(724, 310, 9).fill({ color: 0xccf284, alpha: release });
+      fx.circle(724, 310, 15 + (reduced ? 0 : Math.sin(t * 3) * 1.5)).stroke({
+        color: 0xccf284,
+        width: 2,
+        alpha: release * 0.4,
+      });
     }
     this.root.tint =
       this.options.theme === "ember"
