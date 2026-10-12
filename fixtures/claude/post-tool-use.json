@@ -1,0 +1,1 @@
+{"hook_event_name":"PostToolUse","session_id":"private-session","tool_use_id":"private-tool","tool_name":"Read","tool_input":{"file_path":"/private/project/secret.rs"},"tool_response":{"content":"DO_NOT_FORWARD"}}

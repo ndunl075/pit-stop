@@ -1,0 +1,1 @@
+{"hook_event_name":"PostToolUseFailure","session_id":"private-session","tool_use_id":"private-tool","tool_name":"Bash","tool_input":{"command":"cargo test"},"error":"DO_NOT_FORWARD"}

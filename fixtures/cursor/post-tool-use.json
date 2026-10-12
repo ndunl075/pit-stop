@@ -1,0 +1,1 @@
+{"hook_event_name":"postToolUse","conversation_id":"private-conversation","tool_use_id":"private-tool","tool_name":"Write","tool_input":{"path":"/private/path","contents":"DO_NOT_FORWARD"},"tool_output":"DO_NOT_FORWARD","duration":83}
