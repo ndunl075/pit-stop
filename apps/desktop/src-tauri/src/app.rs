@@ -34,7 +34,9 @@ pub fn run() {
     let app = tauri::Builder::default()
         .plugin(
             tauri::plugin::Builder::<tauri::Wry>::new("local-navigation")
-                .on_navigation(|_, url| crate::navigation::is_local_page(url, cfg!(debug_assertions)))
+                .on_navigation(|_, url| {
+                    crate::navigation::is_local_page(url, cfg!(debug_assertions))
+                })
                 .build(),
         )
         .invoke_handler(tauri::generate_handler![
