@@ -14,7 +14,7 @@ This file records observed checks, not compatibility promises.
 | Shutdown/relaunch | Installed process opens/responds; normal close removes private runtime descriptor. Relaunch preserves active credentials; three simultaneous launches leave exactly one responding instance. |
 | Agent compatibility | Real Claude Code 2.1.287 generated-config session delivered session/read/edit/shell-failure/completion/end events with HTTP 202; malformed-runtime read still succeeded. Real Codex CLI 0.159.3 completion invoked the release helper once and was accepted with HTTP 202. Cursor live acceptance pending. |
 | Hosted Windows | CI run 38254469355 passed all 21 frontend tests, five visual tests, 45 regular native tests, optimized helper and native release build, including elevated runtime ownership regression. |
-| Runtime network | App-owned WebView2 browser process opened two remote HTTPS connections to Microsoft IP addresses. Fresh-profile/closed-proxy test did not eliminate them; strict no-remote-runtime acceptance remains open. |
+| Runtime network | App-owned WebView2 browser process opened two remote HTTPS connections to Microsoft IP addresses. Fresh-profile/closed-proxy test did not eliminate them. Accepted v1 exception: retain Tauri with this disclosed limitation; original strict zero-remote requirement remains unsatisfied. |
 | Recording | Actual 23-second full-motion demo capture encoded as the README GIF; this is not an FPS benchmark. |
 
 Installed provider versions observed without starting model sessions:

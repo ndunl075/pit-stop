@@ -673,6 +673,14 @@ These are intended targets, not a claim that package scripts currently exist.
 7. Removing Pit Stop restores the existing agent configuration without deleting third-party settings.
 8. The release makes no remote connections, consumes no API tokens, and needs no paid service.
 
+**Accepted v1 runtime exception (October 12, 2026):** retain Tauri/WebView2
+and disclose observed OS-managed WebView2 background HTTPS connections. The
+user delegated this tradeoff to the implementer, who selected the documented
+limitation instead of a renderer redesign. Pit Stop's own code, assets and
+event delivery remain local, with no API tokens or paid runtime service.
+This changes the zero-remote acceptance criterion for v1; it does not claim
+that WebView2 satisfies the original strict requirement. See `SECURITY.md`.
+
 ---
 
 ## 14. Implementation order

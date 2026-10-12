@@ -19,6 +19,11 @@ Microsoft documents required and optional diagnostic collection in
 Use an independently managed network boundary if strict offline isolation
 is required; a CSP alone does not establish that boundary.
 
+The v1 runtime decision retains Tauri/WebView2 with this disclosed limitation.
+On October 12, 2026, the user delegated the tradeoff to the implementer, who
+selected this exception to the original strict zero-remote requirement rather
+than a renderer redesign. This decision does not establish offline isolation.
+
 The HTTP receiver binds to 127.0.0.1 on an ephemeral port, requires a rotating
 256-bit bearer token, rejects browser Origin headers and caps JSON bodies at
 8 KiB. Runtime credentials are restricted to the current OS user. This does
