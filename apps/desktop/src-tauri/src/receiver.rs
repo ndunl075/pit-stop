@@ -228,7 +228,6 @@ mod tests {
         });
         let start = tokio::time::Instant::now();
         let mut interval = tokio::time::interval(std::time::Duration::from_millis(100));
-        interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
         for batch in 0..600 {
             interval.tick().await;
             for n in 0..10 {
@@ -252,6 +251,7 @@ mod tests {
                 );
             }
         }
+        tokio::time::sleep_until(start + std::time::Duration::from_secs(60)).await;
         eprintln!(
             "6000 authenticated events in {:.2}s",
             start.elapsed().as_secs_f64()

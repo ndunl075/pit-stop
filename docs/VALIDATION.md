@@ -8,7 +8,7 @@ This file records observed checks, not compatibility promises.
 | Frontend | 19 Vitest scheduler/reducer/demo/scene-loop tests; TypeScript and Vite production build |
 | Scene | Browser inspection of original artwork, compact layout, settings and reduced motion |
 | Native distribution | Optimized Windows executable and NSIS installer built using locked dependencies; per-user test installation contains helper and license resources; installed app returned HTTP 202; uninstaller removed test application |
-| Receiver load | 6,000 authenticated requests in 64.48 seconds (about 93/s on this Windows host); bounded 200 history and 8 sessions; no retained active tools or rejected requests |
+| Receiver load | 6,000 authenticated requests in 60.01 seconds (100/s); bounded 200 history and 8 sessions; no retained active tools or rejected requests |
 | Helper latency | Release Cursor launcher tested with Unicode, spaces and apostrophe path; observed p95 90 ms in 10 launches |
 | Shutdown | Native process opens/responds; normal window close removes private runtime descriptor |
 | Agent compatibility | Synthetic fixtures/transport only; real Claude Code, Cursor and Codex sessions remain unverified |
