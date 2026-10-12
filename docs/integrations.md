@@ -18,9 +18,14 @@ cannot reach this desktop's loopback receiver and are unsupported.
 Claude uses the documented `command` + `args` exec form: the absolute helper path
 is a literal executable path, including Unicode and spaces; no shell interprets
 it. Cursor's documented API accepts a command string. Windows hooks explicitly
-invoke `powershell.exe -NoProfile -NonInteractive`, using an escaped single-quoted
-helper path. Paths with characters whose interpretation differs across Windows
-shell layers are refused with an actionable message. POSIX uses shell quoting.
+quote the absolute `.exe` path directly, avoiding a second PowerShell startup
+for every event. Paths with characters whose interpretation differs across Windows
+shell layers are refused with an actionable message. Unicode, spaces and
+apostrophes are supported. The generated full command is tested through Windows
+`cmd.exe /d /s /c` with a real helper executable; installed Cursor shell selection
+still requires real-session verification. POSIX uses shell quoting. Upgrades
+replace only exact legacy Pit Stop PowerShell launchers in place, retaining
+third-party hook order; disconnect recognizes both generated launcher versions.
 The helper never emits Claude decisions and always emits Cursor's valid allow
 response for `preToolUse`. Pit Stop does not set `failClosed`, `onFailure: block`,
 or provider security policy keys.
@@ -80,3 +85,18 @@ valid when replacement fails; any successfully saved backup is retained.
 The implementation was checked against these public references on October 12,
 2026. Real-provider session verification and installed-version detection must be
 reported separately from schema-level tests.
+
+## Windows launcher verification
+
+The opt-in test `generated_cursor_launcher_executes_real_helper_with_unicode_spaces_and_apostrophe`
+copies a built helper to a temporary `Équipe O'Brien tools` directory, launches
+the exact generated command through `cmd.exe /d /s /c`, sends malformed stdin,
+and asserts valid allow JSON, empty stderr and exit code zero for ten invocations.
+Set `PIT_STOP_TEST_HELPER` to the built helper and run `cargo test -p
+pit-stop-integrations -- --ignored --nocapture` to repeat it.
+
+On the development Windows host, ten optimized-release helper invocations took
+30–90 ms (sample p95 90 ms), including shell startup and process exit. The previous
+PowerShell wrapper took 713–1,204 ms just to start PowerShell and exit, exceeding
+the configured one-second timeout in several samples. These are local samples,
+not guarantees across computers or a real Cursor session validation.
