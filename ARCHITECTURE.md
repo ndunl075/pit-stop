@@ -467,6 +467,8 @@ The helper exits 0 on every expected failure, including unavailable app, bad tok
 
 ---
 
+> **UI implementation note:** Use **GPT Astra** for Pit Stop's UI design and frontend implementation, including the pit-crew scene, overlay layout, animation presentation, onboarding, and visual polish. Preserve the zero-cost, local-first requirements and use only freely redistributable assets and dependencies.
+
 ## 9. Animation engine and visual direction
 
 ### Aesthetic
