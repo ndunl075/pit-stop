@@ -42,8 +42,9 @@ login is not shared with that CLI. No Cursor model session was started. Real
 Cursor validation requires the user's interactive login to the existing account;
 fixture/launcher evidence must not be promoted to live verification.
 
-The final Windows installer is 2,555,297 bytes. Its SHA-256 is
-`B741F7775FCD7DA63C9F285D1C2099CCAE84A04CC5F0236FFE9960962906C971`.
+The Windows installer rebuilt with the fluid animation changes is 2,557,350
+bytes. Its SHA-256 is
+`ABF9EBDEBC7542752F3CB3C72E0BC599813231A1082F46C0FD820469476D371C`.
 Installed authentication checks returned 202 for valid events, 401 for invalid
 credentials and 403 for browser Origin requests. Test uninstall removed the app.
 
