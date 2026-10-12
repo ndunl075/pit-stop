@@ -65,7 +65,7 @@ identify concrete source/test files, not additional planned modules.
 | Codex completion-only | Schema enforcement, notify fixture and visible limitation implemented/verified; real 0.159.3 completion accepted with HTTP 202. |
 | Demo/capture ready for recording | Three layouts, sixteen visual baselines and actual demo GIF verified; **native FPS acceptance pending**. |
 | Disconnect preserves existing configuration | Installer idempotency, backups, stale/malformed input and third-party preservation tests verified; manual upgrade/uninstall scenario pending. |
-| No remote connections/API tokens/paid runtime | Local app code/assets/CSP verified; **WebView2 browser background HTTPS connections observed on development host. Strict zero-remote-runtime requirement remains unmet; see SECURITY.md.** |
+| No remote connections/API tokens/paid runtime | Local app code/assets/CSP verified. **Accepted v1 exception:** retain Tauri with documented OS-managed WebView2 background HTTPS connections. The original strict requirement is not satisfied; the user delegated the tradeoff and the implementer selected this exception on October 12, 2026. See ARCHITECTURE.md and SECURITY.md. |
 
 These open gates require observation, not additional unsupported feature claims.
 Update this checklist and `VALIDATION.md` together when new evidence is obtained.
