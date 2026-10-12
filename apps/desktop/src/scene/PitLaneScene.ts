@@ -38,6 +38,7 @@ export class PitLaneScene {
   });
   clock = 0;
   carVisible = false;
+  private releasePending = false;
   options: SceneOptions = {
     reduced: false,
     paused: false,
@@ -256,10 +257,17 @@ export class PitLaneScene {
     this.scheduler.push(e, this.clock);
     if (e.kind === "session.start" || e.kind === "tool.start") {
       this.carVisible = true;
+      this.releasePending = false;
       this.board.text = "STAND BY";
     }
-    if (e.kind === "turn.complete") this.carVisible = true;
-    if (e.kind === "session.end") this.carVisible = false;
+    if (e.kind === "turn.complete") {
+      this.carVisible = true;
+      this.releasePending = true;
+    }
+    if (e.kind === "session.end") {
+      this.carVisible = false;
+      this.releasePending = false;
+    }
     this.dirty = true;
     this.loop?.wake();
   }
@@ -267,6 +275,7 @@ export class PitLaneScene {
     this.scheduler.reset();
     this.runningOperations.clear();
     this.carVisible = false;
+    this.releasePending = false;
     this.clock = 0;
     this.dirty = true;
     this.loop?.reset();
@@ -275,6 +284,13 @@ export class PitLaneScene {
     this.clock = clock;
     const before = this.scheduler.active.map((x) => x.event.event_id).join("|");
     const active = this.scheduler.tick(this.clock);
+    if (
+      this.releasePending &&
+      !active.some((entry) => entry.clip.id === "release")
+    ) {
+      this.carVisible = false;
+      this.releasePending = false;
+    }
     const changed = before !== active.map((x) => x.event.event_id).join("|");
     if (dirty || this.dirty || changed || !this.options.reduced) this.render();
     this.dirty = false;
@@ -311,12 +327,6 @@ export class PitLaneScene {
         clip.clip.id === "arrive"
           ? -250 + 730 * ease(progress)
           : 480 + 1000 * progress * progress;
-    if (
-      !clip &&
-      this.scheduler.active.length === 0 &&
-      this.board.text === "TURN FINISHED"
-    )
-      this.car.visible = false;
     if (clip?.clip.id === "release") this.board.text = "TURN FINISHED";
     else if (has("warning")) this.board.text = "! TOOL FAILED";
     else if (has("test")) this.board.text = "CHECKING…";
