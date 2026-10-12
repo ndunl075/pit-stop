@@ -16,7 +16,7 @@ identify concrete source/test files, not additional planned modules.
 | §3 Technology | Tauri v2/Rust, React/TypeScript/Vite, PixiJS, Axum/Tokio; small typed React state rather than an extra store dependency. `Cargo.lock`, `pnpm-lock.yaml`, package manifests, MIT/license notices. Production frontend/native builds recorded. | Platform measurements; audit changed dependencies before each distribution. |
 | §4 Boundaries | `apps/desktop/src-tauri/src/{app,receiver}.rs` embeds an ephemeral authenticated loopback receiver and emits normalized events; `crates/pit-stop-hook/src/main.rs` is a separate executable; `apps/desktop/src/native.ts` bridges IPC. Runtime descriptor cleanup is tested/observed. | Repeat open/quit/reopen and simultaneous-instance behavior on clean installation. |
 | §5 Layout | Workspace contains desktop, core, hook and integration crates; original assets, provider fixtures, packaging scripts and contribution/security docs. Closely related UI/scene code is combined where extra placeholder modules would add no behavior. | No requirement to create empty target-layout directories. |
-| §6.1 Claude | Reversible installer in `crates/pit-stop-integrations/src/lib.rs`; documented executable/args form; session/tool/failure/stop/subagent mappings in core normalization; fixtures and CLI tests. | Real Claude session: start, finish, failure, stop; closed/malfunctioning desktop never changes tool permissions. |
+| §6.1 Claude | Reversible installer in `crates/pit-stop-integrations/src/lib.rs`; real-session-tested command strings (Bash on Windows); session/tool/failure/stop/subagent mappings in core normalization; fixtures and CLI tests. | Real Claude 2.1.287 session/read/edit/failure/completion/end events accepted with HTTP 202; malformed-runtime read succeeded. Further versions and real subagent callbacks remain unverified. |
 | §6.2 Cursor | Generic hooks avoid duplicate shell/file instrumentation; explicit pre-tool allow output precedes input/transport handling; malformed/offline tests. Fast quoted Windows executable launcher, exact legacy migration and third-party preservation tests. | Real Cursor session, permission behavior, actual Windows provider shell invocation and remote-session explanation. |
 | §6.3 Codex | `notify` argument vector invokes helper's notify mode; only `agent-turn-complete` accepted; third-party notify collision is refused; `CODEX_HOME` respected in native commands. | Real Codex 0.159.3 completion accepted by the release app (HTTP 202); duplicate notification behavior has fixture tests. No tool-level support claim. |
 | §6.4 Compatibility | `docs/integrations.md`, setup and diagnostics explicitly distinguish documented schemas/synthetic transport from verified provider compatibility. Installed versions in validation are observations, not coverage promises. | Record successful real-session version/platform matrix. |
@@ -39,14 +39,14 @@ identify concrete source/test files, not additional planned modules.
   authenticated receiver, fail-open helper and automated tests.
 - [x] **2 — Claude implementation:** reversible user hooks, mappings, Windows
   executable arguments, fixtures and offline behavior tests.
-- [ ] **2 — Claude live acceptance:** real session and noninterference checks.
+- [x] **2 — Claude live acceptance:** real generated-config session/read/edit/failure/stop/end and malformed-runtime noninterference checks.
 - [x] **3 — Cursor implementation:** generic hooks, unconditional pre-tool allow,
   path/launcher test, malformed/offline behavior and reversible merging.
 - [ ] **3 — Cursor live acceptance:** actual provider launch and permissions.
 - [x] **4 — Codex/polish implementation:** completion-only notify, sound, themes,
   reduced motion, diagnostics, session selection and app-focused hotkeys.
 - [x] **4 — Codex live acceptance:** real 0.159.3 completion accepted with HTTP 202; no invented operations.
-- [x] **5 — Distribution implementation:** MIT/source/asset notices, screenshot,
+- [x] **5 — Distribution implementation:** MIT/source/asset notices, demo GIF,
   reproducible local build instructions, helper packaging and NSIS configuration.
   Optimized executable, per-user installer and test uninstall evidence is recorded.
 - [ ] **5 — Release acceptance:** clean independent Windows 11 installation,
@@ -59,8 +59,8 @@ identify concrete source/test files, not additional planned modules.
 | Requirement | Current evidence / gate |
 | --- | --- |
 | Fresh Windows install displays offline demo | Installer/demo implemented and tested on development host; **separate clean machine pending**. |
-| Claude/Cursor drive live animations | Fixtures and synthetic authenticated transport verified; **both real sessions pending**. |
-| Permitted actions remain permitted open/closed/malfunctioning | Helper failure/allow tests verified; **real provider permission checks pending**. |
+| Claude/Cursor drive live animations | Real Claude generated-config delivery verified; **Cursor real session pending**. |
+| Permitted actions remain permitted open/closed/malfunctioning | Helper failure/allow tests and real Claude malformed-runtime read verified; **Cursor real permission checks pending**. |
 | Conservative command labels and honest outcomes | Classifier/schema/reducer tests and UI labels implemented/verified at unit level. |
 | Codex completion-only | Schema enforcement, notify fixture and visible limitation implemented/verified; real 0.159.3 completion accepted with HTTP 202. |
 | Demo/capture ready for recording | Layout/artwork browser inspection and scene-loop tests; **long recording and FPS acceptance pending**. |

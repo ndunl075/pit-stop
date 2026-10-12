@@ -5,9 +5,10 @@ reversible hooks, no Pit Stop accounts, cloud service or API keys.
 
 ![Pit Stop demo](docs/demo.gif)
 
-Windows 11 is the first supported build target. Claude Code and Cursor
-adapters accept documented tool hooks; their real-agent compatibility is
-currently **unverified**. Codex CLI supports **turn completion only**.
+Windows 11 is the first supported build target. Claude Code 2.1.287 and
+Codex CLI 0.159.3 have passed real local event-delivery checks. Cursor's
+tool-hook adapter remains **unverified** with a real session.
+Codex CLI supports **turn completion only**.
 Successful tool execution never implies that a test suite passed.
 
 ## Run
