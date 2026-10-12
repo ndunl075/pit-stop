@@ -17,6 +17,7 @@ pub struct ReceiverState {
     pub token: Arc<String>,
     pub tx: mpsc::Sender<Event>,
     pub rejected: Arc<AtomicU64>,
+    pub rejections: Arc<Mutex<std::collections::BTreeMap<u16, u64>>>,
     rate: Arc<Mutex<(std::time::Instant, f64)>>,
     permits: Arc<tokio::sync::Semaphore>,
 }
@@ -26,12 +27,16 @@ impl ReceiverState {
             token: Arc::new(token),
             tx,
             rejected: Arc::new(AtomicU64::new(0)),
+            rejections: Arc::new(Mutex::new(std::collections::BTreeMap::new())),
             rate: Arc::new(Mutex::new((std::time::Instant::now(), 200.0))),
             permits: Arc::new(tokio::sync::Semaphore::new(64)),
         }
     }
     fn reject(&self, status: StatusCode) -> StatusCode {
         self.rejected.fetch_add(1, Ordering::Relaxed);
+        if let Ok(mut classes) = self.rejections.lock() {
+            *classes.entry(status.as_u16()).or_default() += 1;
+        }
         status
     }
 }
@@ -141,6 +146,17 @@ mod tests {
             request(&[], "{}".into()).await,
             StatusCode::UNSUPPORTED_MEDIA_TYPE
         );
+    }
+    #[test]
+    fn failure_counters_are_fixed_status_counts_only() {
+        let (tx, _rx) = mpsc::channel(1);
+        let state = ReceiverState::new("secret".into(), tx);
+        state.reject(StatusCode::UNAUTHORIZED);
+        state.reject(StatusCode::UNAUTHORIZED);
+        state.reject(StatusCode::BAD_REQUEST);
+        assert_eq!(state.rejected.load(Ordering::Relaxed), 3);
+        assert_eq!(state.rejections.lock().unwrap().get(&401), Some(&2));
+        assert_eq!(state.rejections.lock().unwrap().len(), 2);
     }
     #[tokio::test]
     async fn limits_payload_and_rejects_schema() {
