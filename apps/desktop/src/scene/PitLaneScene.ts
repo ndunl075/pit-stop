@@ -11,6 +11,8 @@ import crewUrl from "../../../../assets/sprites/crew.svg?url";
 import type { PitStopEvent } from "../contracts/events";
 import type { Settings } from "../state/settingsStore";
 import { TimelineScheduler } from "./TimelineScheduler";
+import { SceneLoop } from "./SceneLoop";
+import { catalog, type ClipId } from "./AnimationCatalog";
 export interface SceneOptions {
   reduced: boolean;
   paused: boolean;
@@ -35,7 +37,6 @@ export class PitLaneScene {
     },
   });
   clock = 0;
-  last = 0;
   carVisible = false;
   options: SceneOptions = {
     reduced: false,
@@ -45,9 +46,21 @@ export class PitLaneScene {
   };
   alive = true;
   observer?: ResizeObserver;
-  raf = 0;
+  loop?: SceneLoop;
   dirty = true;
-  runningOperations = new Set<string>();
+  private running = new Set<string>();
+  get runningOperations() {
+    return this.running;
+  }
+  set runningOperations(value: Set<string>) {
+    this.clock = this.loop?.time() ?? this.clock;
+    const changed =
+      value.size !== this.running.size ||
+      [...value].some((x) => !this.running.has(x));
+    this.running = value;
+    this.scheduler.syncOperations(value, this.clock);
+    if (changed) this.loop?.wake();
+  }
   async init(host: HTMLElement) {
     await this.app.init({
       width: 960,
@@ -106,12 +119,14 @@ export class PitLaneScene {
       this.root.scale.set(s);
       this.root.position.set((w - 960 * s) / 2, (h - 540 * s) / 2);
       this.dirty = true;
+      this.loop?.wake();
     };
     this.observer = new ResizeObserver(resize);
     this.observer.observe(host);
     resize();
-    this.last = performance.now();
-    this.frame(this.last);
+    this.loop = new SceneLoop(this.frame);
+    document.addEventListener("visibilitychange", this.visibilityChanged);
+    this.visibilityChanged();
   }
   label(
     text: string,
@@ -227,8 +242,17 @@ export class PitLaneScene {
   update(options: SceneOptions) {
     this.options = options;
     this.dirty = true;
+    this.visibilityChanged();
   }
+  private visibilityChanged = () => {
+    this.loop?.configure({
+      paused: this.options.paused,
+      hidden: document.hidden,
+      fps: this.options.fps,
+    });
+  };
   event(e: PitStopEvent) {
+    this.clock = this.loop?.time() ?? this.clock;
     this.scheduler.push(e, this.clock);
     if (e.kind === "session.start" || e.kind === "tool.start") {
       this.carVisible = true;
@@ -237,6 +261,7 @@ export class PitLaneScene {
     if (e.kind === "turn.complete") this.carVisible = true;
     if (e.kind === "session.end") this.carVisible = false;
     this.dirty = true;
+    this.loop?.wake();
   }
   reset() {
     this.scheduler.reset();
@@ -244,31 +269,33 @@ export class PitLaneScene {
     this.carVisible = false;
     this.clock = 0;
     this.dirty = true;
+    this.loop?.reset();
   }
-  frame = (now: number) => {
-    if (!this.alive) return;
-    this.raf = requestAnimationFrame(this.frame);
-    const dt = now - this.last;
-    if (dt < 1000 / this.options.fps) return;
-    this.last = now;
-    if (document.hidden || this.options.paused) return;
-    this.clock += Math.min(dt, 100);
+  frame = (clock: number, dirty: boolean) => {
+    this.clock = clock;
+    const before = this.scheduler.active.map((x) => x.event.event_id).join("|");
     const active = this.scheduler.tick(this.clock);
-    if (
-      !active.length &&
-      !this.runningOperations.size &&
-      !this.dirty &&
-      Math.floor(now / 1000) === Math.floor((now - dt) / 1000)
-    )
-      return;
-    this.render();
+    const changed = before !== active.map((x) => x.event.event_id).join("|");
+    if (dirty || this.dirty || changed || !this.options.reduced) this.render();
     this.dirty = false;
+    return {
+      animate:
+        !this.options.reduced &&
+        (active.length > 0 || this.runningOperations.size > 0),
+      wakeAfter: this.scheduler.nextTransition(this.clock),
+    };
   };
   render() {
     const active = this.scheduler.active,
       t = this.options.reduced ? 0 : this.clock / 1000,
       has = (id: string) =>
-        active.some((x) => x.clip.id === id) || this.runningOperations.has(id),
+        active.some((x) => x.clip.id === id) ||
+        (this.runningOperations.has(id) &&
+          !active.some((x) =>
+            x.clip.resources.some((resource) =>
+              catalog[id as ClipId]?.resources.includes(resource),
+            ),
+          )),
       clip = active.find(
         (x) => x.clip.id === "arrive" || x.clip.id === "release",
       ),
@@ -384,7 +411,8 @@ export class PitLaneScene {
   }
   destroy() {
     this.alive = false;
-    cancelAnimationFrame(this.raf);
+    this.loop?.destroy();
+    document.removeEventListener("visibilitychange", this.visibilityChanged);
     this.observer?.disconnect();
     if (this.app.renderer)
       this.app.destroy(true, { children: true, texture: false });
