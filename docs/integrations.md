@@ -127,6 +127,7 @@ codes and aggregate session results, not provider payloads or credentials.
 
 This verifies that narrow Claude flow on the tested Windows/Git Bash installation;
 it does not certify every provider version, subagent flow, PowerShell-only setup,
-or renderer behavior. Real Cursor validation is pending: the installed editor
-launcher is not the separately installed `agent` CLI, and no new CLI or account
-setup was performed for validation.
+or renderer behavior. Real Cursor validation is pending: the official Windows
+CLI 2026.10.01-e373342 was extracted into an isolated test directory, but reports
+unauthenticated and does not share the editor's login. No Cursor model session,
+global installation, PATH change or new account setup was performed.
