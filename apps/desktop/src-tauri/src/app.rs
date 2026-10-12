@@ -5,7 +5,9 @@ use crate::{
 };
 use pit_stop_core::security::{self, RuntimeDescriptor};
 use std::{
-    path::PathBuf,
+    fs::{File, OpenOptions},
+    io,
+    path::{Path, PathBuf},
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc, Mutex,
@@ -16,6 +18,8 @@ use tauri::{Emitter, Manager};
 use tokio::sync::{mpsc, oneshot};
 
 pub struct AppState {
+    // Keep the same lock inode open for the full runtime; never truncate or unlink it.
+    pub _runtime_lock: File,
     pub dir: PathBuf,
     pub settings: Mutex<Settings>,
     pub sessions: Arc<Mutex<Sessions>>,
@@ -23,6 +27,39 @@ pub struct AppState {
     pub runtime: Mutex<RuntimeDescriptor>,
     pub shutdown: Mutex<Option<oneshot::Sender<()>>>,
     pub listening: Arc<AtomicBool>,
+}
+
+fn acquire_runtime_lock(dir: &Path) -> io::Result<Option<File>> {
+    let path = dir.join("runtime.lock");
+    match std::fs::symlink_metadata(&path) {
+        Ok(metadata) if !metadata.is_file() || metadata.file_type().is_symlink() => {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "Runtime lock must be a regular file",
+            ));
+        }
+        Ok(_) => {}
+        Err(error) if error.kind() == io::ErrorKind::NotFound => {}
+        Err(error) => return Err(error),
+    }
+    let file = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(&path)?;
+    let metadata = std::fs::symlink_metadata(&path)?;
+    if !file.metadata()?.is_file() || !metadata.is_file() || metadata.file_type().is_symlink() {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "Runtime lock must be a regular file",
+        ));
+    }
+    match file.try_lock() {
+        Ok(()) => Ok(Some(file)),
+        Err(std::fs::TryLockError::WouldBlock) => Ok(None),
+        Err(std::fs::TryLockError::Error(error)) => Err(error),
+    }
 }
 pub fn now_ms() -> u64 {
     SystemTime::now()
@@ -32,6 +69,14 @@ pub fn now_ms() -> u64 {
 }
 pub fn run() {
     let app = tauri::Builder::default()
+        // Register first: secondary launches must exit before receiver/runtime setup.
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.unminimize();
+                let _ = window.set_focus();
+            }
+        }))
         .plugin(
             tauri::plugin::Builder::<tauri::Wry>::new("local-navigation")
                 .on_navigation(|_, url| {
@@ -53,6 +98,17 @@ pub fn run() {
         .setup(|app| {
             let dir = security::data_dir()?;
             std::fs::create_dir_all(&dir)?;
+            // The Windows plugin can miss a first instance still creating its hidden window.
+            // Hold a separate per-user OS file lock before binding or publishing anything.
+            let Some(runtime_lock) = acquire_runtime_lock(&dir).map_err(|error| {
+                io::Error::new(
+                    error.kind(),
+                    format!("Cannot acquire Pit Stop runtime lock: {error}"),
+                )
+            })?
+            else {
+                std::process::exit(0);
+            };
             let settings = Settings::load(&dir);
             let listener = std::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0))?;
             listener.set_nonblocking(true)?;
@@ -145,6 +201,7 @@ pub fn run() {
                 }
             }
             app.manage(AppState {
+                _runtime_lock: runtime_lock,
                 dir,
                 settings: Mutex::new(settings),
                 sessions,
@@ -191,4 +248,39 @@ pub fn run() {
             };
         }
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn runtime_lock_contends_without_truncation_and_reacquires_after_drop() {
+        let dir = std::env::temp_dir().join(format!("pit-stop-lock-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir(&dir).unwrap();
+        let path = dir.join("runtime.lock");
+        std::fs::write(&path, b"must remain unchanged").unwrap();
+        let first = acquire_runtime_lock(&dir).unwrap().unwrap();
+        assert!(acquire_runtime_lock(&dir).unwrap().is_none());
+        drop(first);
+        let third = acquire_runtime_lock(&dir).unwrap().unwrap();
+        drop(third);
+        assert_eq!(std::fs::read(&path).unwrap(), b"must remain unchanged");
+        std::fs::remove_file(path).unwrap();
+        std::fs::remove_dir(dir).unwrap();
+    }
+
+    #[test]
+    fn runtime_lock_rejects_nonregular_path() {
+        let dir = std::env::temp_dir().join(format!("pit-stop-lock-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir(&dir).unwrap();
+        let path = dir.join("runtime.lock");
+        std::fs::create_dir(&path).unwrap();
+        assert_eq!(
+            acquire_runtime_lock(&dir).unwrap_err().kind(),
+            io::ErrorKind::InvalidInput
+        );
+        std::fs::remove_dir(path).unwrap();
+        std::fs::remove_dir(dir).unwrap();
+    }
 }
