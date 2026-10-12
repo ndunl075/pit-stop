@@ -1,0 +1,15 @@
+[workspace]
+members = ["crates/pit-stop-core", "crates/pit-stop-hook", "crates/pit-stop-integrations"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/ndunl075/pit-stop"
+
+[profile.release]
+lto = "thin"
+strip = true
+codegen-units = 1
+

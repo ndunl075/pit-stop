@@ -1,0 +1,1 @@
+{"hook_event_name":"preToolUse","conversation_id":"private-conversation","generation_id":"private-generation","tool_use_id":"private-tool","tool_name":"Shell","tool_input":{"command":"npm run build"},"workspace_roots":["/private/project"],"user_email":"DO_NOT_FORWARD"}

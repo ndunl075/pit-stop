@@ -1,0 +1,1 @@
+{"hook_event_name":"postToolUseFailure","conversation_id":"private-conversation","tool_use_id":"private-tool","tool_name":"Shell","tool_input":{"command":"npm test"},"error_message":"DO_NOT_FORWARD","failure_type":"timeout","duration":5000}
