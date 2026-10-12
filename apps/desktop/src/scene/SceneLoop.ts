@@ -70,13 +70,18 @@ export class SceneLoop {
     this.pending = null;
     if (this.stopped || this.paused || this.hidden) return;
     const dt = Math.max(0, now - this.last);
-    if (now - this.lastDraw < 1000 / this.fps - 0.5) {
+    const interval = 1000 / this.fps;
+    const elapsed = now - this.lastDraw;
+    if (elapsed < interval - 0.5) {
       this.pending = { kind: "frame", id: this.env.requestFrame(this.step) };
       return;
     }
     this.clock += dt;
     this.last = now;
-    this.lastDraw = now;
+    // Keep the cadence's phase instead of restarting it at each display frame.
+    // Otherwise a 144 Hz display rounds every 60 fps interval up to three
+    // refreshes and renders at 48 fps. Drop missed slots without catch-up draws.
+    this.lastDraw += Math.max(1, Math.floor((elapsed + 0.5) / interval)) * interval;
     const result = this.draw(this.clock, this.dirty);
     this.dirty = false;
     if (result.animate)

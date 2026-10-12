@@ -50,3 +50,26 @@ it("settles departure even when a warning remains visible", () => {
   ).toBe(true);
   expect(scene.carVisible).toBe(false);
 });
+
+it("renders the complete crew retreat before returning the frame loop to sleep", () => {
+  const scene = new PitLaneScene();
+  scene.render = vi.fn();
+  scene.event({ ...event("tool.start", "edit"), tool_key: "edit-1" }, 0);
+  scene.frame(1000, true);
+  scene.event({ ...event("tool.finish", "edit"), tool_key: "edit-1" }, 1000);
+  expect(scene.frame(1350, true).animate).toBe(true);
+  expect(scene.scheduler.active).toHaveLength(0);
+  expect(scene.frame(2199, false).animate).toBe(true);
+  expect(scene.frame(2200, false)).toEqual({ animate: false, wakeAfter: null });
+  scene.reset();
+  expect(scene.motion.size).toBe(0);
+});
+
+it("does not animate reduced-motion retirement tails", () => {
+  const scene = new PitLaneScene();
+  scene.render = vi.fn();
+  scene.options.reduced = true;
+  scene.event({ ...event("tool.start", "edit"), tool_key: "edit-1" }, 0);
+  scene.event({ ...event("tool.finish", "edit"), tool_key: "edit-1" }, 1000);
+  expect(scene.frame(1350, true)).toEqual({ animate: false, wakeAfter: null });
+});

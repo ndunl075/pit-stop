@@ -24,3 +24,17 @@ pnpm test:visual
 ```
 
 Inspect every changed image before committing it. Baselines are not regenerated during normal tests. Missing baselines fail normal runs. Failure screenshots, image diffs, and traces are written under `apps/desktop/test-results/visual`; the local HTML report is `apps/desktop/playwright-report/index.html`. These generated reports are ignored by Git. To view the report: `pnpm --filter desktop exec playwright show-report`.
+## Optional motion recording
+
+To capture the complete demo using its normal animation clock:
+
+```powershell
+$env:PIT_STOP_RECORD_DEMO = '1'
+pnpm test:visual --grep 'capture the full demo'
+Remove-Item Env:PIT_STOP_RECORD_DEMO
+```
+
+The WebM appears in `apps/desktop/test-results/visual/`. This opt-in check
+also rejects page errors and remote app requests. Ordinary test runs skip
+recording and retain deterministic screenshot comparisons.
+

@@ -5,7 +5,7 @@ This file records observed checks, not compatibility promises.
 | Area | Evidence |
 | --- | --- |
 | Native workspace | 45 regular tests pass: sanitization/classification, runtime ACL and lock contention, helper fail-open, installer preservation/migration, navigation, receiver auth/body bounds and sessions |
-| Frontend | 21 Vitest scheduler/reducer/demo/scene-loop/lifecycle tests; TypeScript and Vite production build |
+| Frontend | 31 Vitest scheduler/reducer/demo/scene-loop/lifecycle/motion tests; TypeScript and Vite production build. Cadence tests cover 30/60 fps targets on a simulated 144 Hz display; no native FPS claim. |
 | Scene | Browser inspection of original artwork, compact layout, settings and reduced motion |
 | Visual regression | Five Playwright tests pass against 16 reviewed Windows baselines: eleven operation stages, compact/capture layouts, reduced motion and normal-clock pause/resume. Browser rendering only; no native FPS claim. |
 | Native distribution | Optimized Windows executable and NSIS installer built using locked dependencies; per-user test installation contains helper and license resources; installed app returned HTTP 202; uninstaller removed test application |
@@ -15,7 +15,7 @@ This file records observed checks, not compatibility promises.
 | Agent compatibility | Real Claude Code 2.1.287 generated-config session delivered session/read/edit/shell-failure/completion/end events with HTTP 202; malformed-runtime read still succeeded. Real Codex CLI 0.159.3 completion invoked the release helper once and was accepted with HTTP 202. Cursor live acceptance pending. |
 | Hosted Windows | CI run 38254469355 passed all 21 frontend tests, five visual tests, 45 regular native tests, optimized helper and native release build, including elevated runtime ownership regression. |
 | Runtime network | App-owned WebView2 browser process opened two remote HTTPS connections to Microsoft IP addresses. Fresh-profile/closed-proxy test did not eliminate them. Accepted v1 exception: retain Tauri with this disclosed limitation; original strict zero-remote requirement remains unsatisfied. |
-| Recording | Actual 23-second full-motion demo capture encoded as the README GIF; this is not an FPS benchmark. |
+| Recording | Normal-clock full-demo browser recording passed with no page errors or remote app requests; exported as the README's 25 fps GIF. Export rate is not a renderer FPS benchmark. |
 
 Installed provider versions observed without starting model sessions:
 Claude Code 2.1.287, Cursor 3.14.27, Codex CLI 0.159.3.
@@ -42,8 +42,9 @@ login is not shared with that CLI. No Cursor model session was started. Real
 Cursor validation requires the user's interactive login to the existing account;
 fixture/launcher evidence must not be promoted to live verification.
 
-The final Windows installer is 2,555,297 bytes. Its SHA-256 is
-`B741F7775FCD7DA63C9F285D1C2099CCAE84A04CC5F0236FFE9960962906C971`.
+The Windows installer rebuilt with the fluid animation changes is 2,557,350
+bytes. Its SHA-256 is
+`ABF9EBDEBC7542752F3CB3C72E0BC599813231A1082F46C0FD820469476D371C`.
 Installed authentication checks returned 202 for valid events, 401 for invalid
 credentials and 403 for browser Origin requests. Test uninstall removed the app.
 
