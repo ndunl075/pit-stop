@@ -1,0 +1,13 @@
+node_modules/
+target/
+dist/
+.worktrees/
+.tools/
+.pnpm-store/
+artifacts/
+apps/desktop/src-tauri/binaries/
+apps/desktop/src-tauri/gen/
+.DS_Store
+test-results/
+playwright-report/
+*.tsbuildinfo

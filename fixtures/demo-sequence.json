@@ -1,0 +1,63 @@
+[
+  { "at": 0, "kind": "session.start", "operation": "other" },
+  { "at": 1300, "kind": "tool.start", "operation": "inspect", "tool": "read" },
+  {
+    "at": 1600,
+    "kind": "tool.finish",
+    "operation": "inspect",
+    "tool": "read",
+    "outcome": "success"
+  },
+  { "at": 2400, "kind": "tool.start", "operation": "edit", "tool": "edit" },
+  {
+    "at": 3800,
+    "kind": "tool.finish",
+    "operation": "edit",
+    "tool": "edit",
+    "outcome": "success"
+  },
+  { "at": 4200, "kind": "tool.start", "operation": "test", "tool": "test" },
+  {
+    "at": 5600,
+    "kind": "tool.finish",
+    "operation": "test",
+    "tool": "test",
+    "outcome": "success"
+  },
+  { "at": 6200, "kind": "tool.start", "operation": "build", "tool": "build" },
+  {
+    "at": 7600,
+    "kind": "tool.finish",
+    "operation": "build",
+    "tool": "build",
+    "outcome": "success"
+  },
+  { "at": 8000, "kind": "tool.start", "operation": "shell", "tool": "shell" },
+  {
+    "at": 8800,
+    "kind": "tool.finish",
+    "operation": "shell",
+    "tool": "shell",
+    "outcome": "success"
+  },
+  { "at": 9400, "kind": "tool.start", "operation": "mcp", "tool": "radio" },
+  {
+    "at": 10400,
+    "kind": "tool.finish",
+    "operation": "mcp",
+    "tool": "radio",
+    "outcome": "success"
+  },
+  { "at": 11000, "kind": "subagent.start", "operation": "delegate" },
+  { "at": 12000, "kind": "subagent.end", "operation": "delegate" },
+  { "at": 12500, "kind": "tool.start", "operation": "other", "tool": "other" },
+  {
+    "at": 13000,
+    "kind": "tool.finish",
+    "operation": "other",
+    "tool": "other",
+    "outcome": "failure"
+  },
+  { "at": 14800, "kind": "turn.complete", "operation": "other" },
+  { "at": 17400, "kind": "session.end", "operation": "other" }
+]
