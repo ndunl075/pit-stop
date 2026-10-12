@@ -221,4 +221,51 @@ mod tests {
         v["prompt"] = json!("SECRET");
         assert!(serde_json::from_value::<Event>(v).is_err());
     }
+
+    #[test]
+    fn codex_turn_retry_identity_is_opaque_and_stable() {
+        let input = json!({"type":"agent-turn-complete","thread-id":"private-thread","turn-id":"private-turn"});
+        let first = normalize(Source::Codex, None, &input, SECRET).unwrap();
+        let second = normalize(Source::Codex, None, &input, SECRET).unwrap();
+        assert_eq!(first.event_id, second.event_id);
+        let other = normalize(Source::Codex, None, &input, &[99; 32]).unwrap();
+        assert_ne!(first.event_id, other.event_id);
+        let mut input = input;
+        input["turn-id"] = json!("another-turn");
+        assert_ne!(
+            first.event_id,
+            normalize(Source::Codex, None, &input, SECRET)
+                .unwrap()
+                .event_id
+        );
+    }
+
+    #[test]
+    fn receiver_contract_rejects_invalid_identity_and_timing() {
+        let event=normalize(Source::Claude,None,&json!({"hook_event_name":"PreToolUse","session_id":"s","tool_use_id":"t","tool_name":"Read"}),SECRET).unwrap();
+        let mut bad = event.clone();
+        bad.version = 2;
+        assert!(bad.validate().is_err());
+        let mut bad = event.clone();
+        bad.session_key = "private-id".into();
+        assert!(bad.validate().is_err());
+        let mut bad = event.clone();
+        bad.timestamp_ms = u64::MAX;
+        assert!(bad.validate().is_err());
+        let mut bad = event.clone();
+        bad.tool_key = None;
+        assert!(bad.validate().is_err());
+        let mut bad = event.clone();
+        bad.outcome = Outcome::Success;
+        assert!(bad.validate().is_err());
+        let mut bad = event.clone();
+        bad.duration_ms = Some(10);
+        assert!(bad.validate().is_err());
+        let mut bad = event.clone();
+        bad.source = Source::Codex;
+        assert!(bad.validate().is_err());
+        let mut bad = event;
+        bad.event_id = "00000000-0000-0000-0000-000000000000".into();
+        assert!(bad.validate().is_err());
+    }
 }

@@ -12,7 +12,9 @@ pub fn classify(tool: &str, command: Option<&str>) -> Operation {
         "bash" | "shell" | "powershell" | "terminal" | "run_terminal_cmd" => {
             command.map(classify_command).unwrap_or(Operation::Shell)
         }
-        _ if name.starts_with("mcp__") || name == "mcp" => Operation::Mcp,
+        _ if name.starts_with("mcp__") || name.starts_with("mcp:") || name == "mcp" => {
+            Operation::Mcp
+        }
         _ => Operation::Other,
     }
 }
@@ -59,6 +61,8 @@ mod tests {
     use super::*;
     #[test]
     fn conservative_commands() {
+        assert_eq!(classify("MCP:github_search", None), Operation::Mcp);
+        assert_eq!(classify("mcp__github__search", None), Operation::Mcp);
         for cmd in [
             "cargo test --workspace",
             "pnpm test",

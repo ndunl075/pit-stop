@@ -5,7 +5,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RuntimeDescriptor {
     pub port: u16,
@@ -14,6 +14,17 @@ pub struct RuntimeDescriptor {
     pub token: String,
     #[serde(default = "default_inference")]
     pub infer_commands: bool,
+}
+impl std::fmt::Debug for RuntimeDescriptor {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RuntimeDescriptor")
+            .field("port", &self.port)
+            .field("pid", &self.pid)
+            .field("startup_id", &self.startup_id)
+            .field("token", &"[redacted]")
+            .field("infer_commands", &self.infer_commands)
+            .finish()
+    }
 }
 fn default_inference() -> bool {
     true

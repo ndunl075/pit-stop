@@ -54,13 +54,15 @@ fn post_claude_and_codex_remain_silent_and_successful() {
 #[test]
 fn stalled_stdin_does_not_stall_agent() {
     let start = Instant::now();
-    let child = Command::new(env!("CARGO_BIN_EXE_pit-stop-hook"))
+    let mut child = Command::new(env!("CARGO_BIN_EXE_pit-stop-hook"))
         .args(["hook", "--source", "cursor", "--event", "preToolUse"])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
         .unwrap();
+    // Keep the writer open so the child truly sees no EOF and must enforce its deadline.
+    let _held_input = child.stdin.take().unwrap();
     let output = child.wait_with_output().unwrap();
     assert!(start.elapsed() < Duration::from_secs(2));
     assert!(output.status.success());
@@ -69,6 +71,12 @@ fn stalled_stdin_does_not_stall_agent() {
 
 #[test]
 fn authenticated_transport_is_redacted_and_does_not_wait_for_slow_receiver() {
+    for infer_commands in [true, false] {
+        check_transport(infer_commands);
+    }
+}
+
+fn check_transport(infer_commands: bool) {
     use pit_stop_core::{
         security::{write_runtime, RuntimeDescriptor},
         Event, Operation,
@@ -82,7 +90,7 @@ fn authenticated_transport_is_redacted_and_does_not_wait_for_slow_receiver() {
         pid: std::process::id(),
         startup_id: "bc294ef4-3d1f-419c-8c34-d65d0975721b".into(),
         token: "ab".repeat(32),
-        infer_commands: true,
+        infer_commands,
     };
     write_runtime(&path, &descriptor).unwrap();
     let (sender, receiver) = mpsc::channel();
@@ -122,7 +130,25 @@ fn authenticated_transport_is_redacted_and_does_not_wait_for_slow_receiver() {
     assert!(!body.contains("DO_NOT_FORWARD"));
     let event: Event = serde_json::from_str(body).unwrap();
     event.validate().unwrap();
-    assert_eq!(event.operation, Operation::Build);
+    assert_eq!(
+        event.operation,
+        if infer_commands {
+            Operation::Build
+        } else {
+            Operation::Shell
+        }
+    );
+}
+
+#[test]
+fn explicit_post_does_not_print_permission_even_if_payload_lies() {
+    let output = invoke(
+        &["hook", "--source", "cursor", "--event", "postToolUse"],
+        include_bytes!("../../../fixtures/cursor/pre-tool-use.json"),
+    );
+    assert!(output.status.success());
+    assert!(output.stdout.is_empty());
+    assert!(output.stderr.is_empty());
 }
 
 #[test]

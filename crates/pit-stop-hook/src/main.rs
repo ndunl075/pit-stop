@@ -73,6 +73,7 @@ fn run(args: &[String], cursor: bool, explicit_pre: bool) -> io::Result<()> {
     };
     if cursor
         && !explicit_pre
+        && option(args, "--event").is_none()
         && input.get("hook_event_name").and_then(|v| v.as_str()) == Some("preToolUse")
     {
         let _ = io::stdout().write_all(b"{\"permission\":\"allow\"}\n");
@@ -104,8 +105,9 @@ fn run(args: &[String], cursor: bool, explicit_pre: bool) -> io::Result<()> {
     ))?;
     // No proxy, DNS resolution, redirect handling, arbitrary address or provider text is involved.
     let header=format!("POST /v1/events HTTP/1.1\r\nHost: 127.0.0.1:{}\r\nAuthorization: Bearer {}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",runtime.port,runtime.token,body.len());
-    connection.write_all(header.as_bytes())?;
-    connection.write_all(&body)?;
+    let mut request = header.into_bytes();
+    request.extend_from_slice(&body);
+    connection.write_all(&request)?;
     // Delivery is best effort. The helper never waits for a receiver/animation acknowledgement.
     Ok(())
 }
