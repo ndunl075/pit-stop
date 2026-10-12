@@ -23,7 +23,7 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 describe("power-aware presentation loop", () => {
   it.each([30, 60] as const)("keeps %i fps cadence on a 144 Hz display", (fps) => {
-    let callback: ((now: number) => void) | null = null;
+    const pending: { callback?: (now: number) => void } = {};
     let frame = 0;
     const draws: number[] = [];
     const loop = new SceneLoop(
@@ -33,15 +33,18 @@ describe("power-aware presentation loop", () => {
       },
       {
         ...environment,
-        requestFrame: (next) => { callback = next; return ++frame; },
-        cancelFrame: () => { callback = null; },
+        requestFrame: (next) => {
+          pending.callback = next;
+          return ++frame;
+        },
+        cancelFrame: () => { pending.callback = undefined; },
       },
     );
     loop.configure({ hidden: false, paused: false, fps });
     for (let tick = 1; tick <= 144; tick++) {
       wall = tick * 1000 / 144;
-      const next = callback;
-      callback = null;
+      const next = pending.callback;
+      pending.callback = undefined;
       next?.(wall);
     }
     expect(draws.length).toBeGreaterThanOrEqual(fps - 1);
