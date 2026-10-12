@@ -141,14 +141,20 @@ fn absent_config_dry_run_writes_nothing_and_creates_no_backup() {
 }
 
 #[test]
-fn claude_exec_form_and_cursor_quotes_unicode_spaces_apostrophes() {
+fn claude_shell_form_and_cursor_quotes_unicode_spaces_apostrophes() {
     let (_directory, path, helper) = setup("claude", None);
     let change = preview("claude", &path, &helper, false).unwrap();
     let config: Value = serde_json::from_str(&change.after).unwrap();
     let command = &config["hooks"]["PreToolUse"][0]["hooks"][0];
-    assert_eq!(command["command"], helper.to_str().unwrap());
-    assert_eq!(command["args"], json!(["hook", "--source", "claude"]));
-    assert!(command.get("shell").is_none());
+    let text = command["command"].as_str().unwrap();
+    assert!(text.contains("Équipe"));
+    assert!(text.ends_with("hook --source claude"));
+    assert!(command.get("args").is_none());
+    #[cfg(windows)]
+    {
+        assert!(text.contains("O'Brien"));
+        assert_eq!(command["shell"], "bash");
+    }
     let change = preview("cursor", &path, &helper, false).unwrap();
     let config: Value = serde_json::from_str(&change.after).unwrap();
     let command = &config["hooks"]["preToolUse"][0];
@@ -311,5 +317,34 @@ fn cursor_rejects_shell_expansion_in_executable_paths() {
             .unwrap()
             .join(format!("hook{character}evil.exe"));
         assert!(preview("cursor", &path, &hostile, false).is_err());
+        assert!(preview("claude", &path, &hostile, false).is_err());
     }
+}
+
+#[test]
+fn claude_migrates_exact_exec_form_and_preserves_extended_groups() {
+    let (_directory, path, helper) = setup("claude", None);
+    let legacy = json!({"type":"command","command":helper.to_str().unwrap(),"args":["hook","--source","claude"],"timeout":1});
+    let config = json!({"hooks":{"PreToolUse":[{"matcher":".*","hooks":[legacy,{"type":"command","command":"third-party"}]}]}});
+    fs::write(&path, serde_json::to_string(&config).unwrap()).unwrap();
+    let change = preview("claude", &path, &helper, false).unwrap();
+    let upgraded: Value = serde_json::from_str(&change.after).unwrap();
+    assert_eq!(upgraded["hooks"]["PreToolUse"].as_array().unwrap().len(), 1);
+    assert_eq!(
+        upgraded["hooks"]["PreToolUse"][0]["hooks"][0],
+        owned_entry("claude", helper.to_str().unwrap(), "PreToolUse").unwrap()["hooks"][0]
+    );
+    assert_eq!(
+        upgraded["hooks"]["PreToolUse"][0]["hooks"][1],
+        json!({"type":"command","command":"third-party"})
+    );
+    fs::write(&path, &change.after).unwrap();
+    assert!(!preview("claude", &path, &helper, false).unwrap().changed);
+    fs::write(&path, serde_json::to_string(&config).unwrap()).unwrap();
+    let removed: Value =
+        serde_json::from_str(&preview("claude", &path, &helper, true).unwrap().after).unwrap();
+    assert_eq!(
+        removed["hooks"]["PreToolUse"][0]["hooks"],
+        json!([{"type":"command","command":"third-party"}])
+    );
 }
