@@ -66,6 +66,15 @@ fn existing_codex_notifier_never_overwritten_or_removed() {
 }
 
 #[test]
+fn codex_invokes_notify_subcommand_with_literal_argument_vector() {
+    let (_directory, path, helper) = setup("codex", None);
+    let install = preview("codex", &path, &helper, false).unwrap();
+    let document = install.after.parse::<toml_edit::DocumentMut>().unwrap();
+    let arguments: Vec<&str> = document["notify"].as_array().unwrap().iter().map(|item| item.as_str().unwrap()).collect();
+    assert_eq!(arguments, vec![helper.to_str().unwrap(), "notify", "--source", "codex"]);
+}
+
+#[test]
 fn absent_config_dry_run_writes_nothing_and_creates_no_backup() {
     for source in ["claude", "cursor", "codex"] {
         let (directory, path, helper) = setup(source, None);

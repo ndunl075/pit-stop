@@ -164,7 +164,7 @@ fn merge_json(source: &str, input: &str, helper: &str, disconnect: bool) -> Resu
 
 fn codex(input: &str, helper: &str, disconnect: bool) -> Result<String> {
     let mut document = input.parse::<toml_edit::DocumentMut>().map_err(|_| Error::Invalid("malformed TOML".into()))?;
-    let expected = [helper, "hook", "--source", "codex"];
+    let expected = [helper, "notify", "--source", "codex"];
     let existing = document.get("notify");
     let owned = existing.and_then(|item| item.as_array()).is_some_and(|array| {
         array.len() == expected.len() && array.iter().zip(expected).all(|(value, expected)| value.as_str() == Some(expected))
