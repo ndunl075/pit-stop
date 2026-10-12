@@ -165,3 +165,19 @@ test("pause freezes the active crew and resuming advances the demo", async ({
   expect(audit.remoteRequests).toEqual([]);
   expect(audit.errors).toEqual([]);
 });
+
+// Opt in locally to export a real-time preview of the complete motion story.
+// Ordinary visual checks retain their fast, deterministic screenshot clock.
+test.describe("demo recording", () => {
+  test.skip(!process.env.PIT_STOP_RECORD_DEMO, "Set PIT_STOP_RECORD_DEMO=1 to record");
+  test.use({ video: { mode: "on", size: { width: 800, height: 450 } } });
+  test("capture the full demo with its normal animation clock", async ({ page }) => {
+    const audit = await prepare(page, "capture", false, false);
+    await page.clock.resume();
+    await expect(page.locator(".activity-title")).toHaveText("Session ended", {
+      timeout: 20_000,
+    });
+    expect(audit.remoteRequests).toEqual([]);
+    expect(audit.errors).toEqual([]);
+  });
+});
