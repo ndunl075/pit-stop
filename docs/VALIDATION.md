@@ -5,13 +5,17 @@ This file records observed checks, not compatibility promises.
 | Area | Evidence |
 | --- | --- |
 | Native workspace | Core sanitization/classification, runtime ACL, helper fail-open, installer preservation, receiver auth/body bounds and session lifecycle tests |
-| Frontend | Vitest scheduler/reducer/demo tests; TypeScript and Vite production build |
+| Frontend | 19 Vitest scheduler/reducer/demo/scene-loop tests; TypeScript and Vite production build |
 | Scene | Browser inspection of original artwork, compact layout, settings and reduced motion |
-| Native distribution | Optimized Windows executable and NSIS installer built using locked dependencies |
-| Receiver load | Explicit 6,000 authenticated requests; bounded 200 history and 8 sessions; no retained active tools |
+| Native distribution | Optimized Windows executable and NSIS installer built using locked dependencies; per-user test installation contains helper and license resources; installed app returned HTTP 202; uninstaller removed test application |
+| Receiver load | 6,000 authenticated requests in 64.48 seconds (about 93/s on this Windows host); bounded 200 history and 8 sessions; no retained active tools or rejected requests |
 | Helper latency | Release Cursor launcher tested with Unicode, spaces and apostrophe path; observed p95 90 ms in 10 launches |
 | Shutdown | Native process opens/responds; normal window close removes private runtime descriptor |
 | Agent compatibility | Synthetic fixtures/transport only; real Claude Code, Cursor and Codex sessions remain unverified |
+
+Installed provider versions observed without starting model sessions:
+Claude Code 2.1.287, Cursor 3.14.27, Codex CLI 0.159.3.
+These version checks do not verify event delivery.
 
 Remaining manual platform checks: clean Windows 11 installation on a separate
 machine, real agent sessions, multi-monitor and 100/125/150% scaling,
