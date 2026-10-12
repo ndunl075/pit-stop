@@ -109,8 +109,14 @@ pub fn get_diagnostics(state: State<AppState>) -> Result<serde_json::Value, Stri
                 .ok()
         })
         .collect::<Vec<_>>();
+    let rejections = state
+        .receiver
+        .rejections
+        .lock()
+        .map(|counts| counts.clone())
+        .unwrap_or_default();
     Ok(
-        serde_json::json!({"version":env!("CARGO_PKG_VERSION"),"listener_health":if state.listening.load(Ordering::Relaxed){"Listening on local loopback"}else{"Listener unavailable"},"summary":sessions.summary(),"rejected":state.receiver.rejected.load(Ordering::Relaxed),"helper_installed":stable_helper(&state).is_file(),"support":{"claude":"Tool hooks · unverified with real agent","cursor":"Tool hooks · unverified with real agent","codex":"Turn completion only"},"integrations":integrations,"logging":false}),
+        serde_json::json!({"version":env!("CARGO_PKG_VERSION"),"listener_health":if state.listening.load(Ordering::Relaxed){"Listening on local loopback"}else{"Listener unavailable"},"summary":sessions.summary(),"rejected":state.receiver.rejected.load(Ordering::Relaxed),"rejections":rejections,"helper_path":stable_helper(&state),"helper_installed":stable_helper(&state).is_file(),"support":{"claude":"Tool hooks · unverified with real agent","cursor":"Tool hooks · unverified with real agent","codex":"Turn completion only"},"integrations":integrations,"logging":false}),
     )
 }
 #[tauri::command]
