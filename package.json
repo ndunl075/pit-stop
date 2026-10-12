@@ -7,6 +7,9 @@
     "dev": "pnpm --filter desktop dev",
     "build": "pnpm --filter desktop build",
     "test": "pnpm --filter desktop test",
-    "typecheck": "pnpm --filter desktop typecheck"
+    "typecheck": "pnpm --filter desktop typecheck",
+    "test:visual": "pnpm --filter desktop test:visual",
+    "test:visual:update": "pnpm --filter desktop test:visual:update",
+    "test:visual:install": "pnpm --filter desktop exec playwright install chromium"
   }
 }

@@ -252,8 +252,8 @@ export class PitLaneScene {
       fps: this.options.fps,
     });
   };
-  event(e: PitStopEvent) {
-    this.clock = this.loop?.time() ?? this.clock;
+  event(e: PitStopEvent, presentationTime = this.loop?.time() ?? this.clock) {
+    this.clock = presentationTime;
     this.scheduler.push(e, this.clock);
     if (e.kind === "session.start" || e.kind === "tool.start") {
       this.carVisible = true;
