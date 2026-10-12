@@ -1,0 +1,25 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Pit Stop",
+  "version": "0.1.0",
+  "identifier": "dev.pitstop.desktop",
+  "build": {
+    "beforeDevCommand": "pnpm dev",
+    "beforeBuildCommand": "pnpm build",
+    "devUrl": "http://localhost:1420",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [{ "label": "main", "title": "Pit Stop", "width": 720, "height": 405, "minWidth": 420, "minHeight": 240, "resizable": true }],
+    "security": { "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' asset: data: blob:; connect-src ipc: http://ipc.localhost; worker-src 'self' blob:; media-src 'self' blob:; font-src 'self'; object-src 'none'; frame-src 'none'" }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "resources": ["binaries/pit-stop-hook.exe"],
+    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/icon.ico"],
+    "windows": { "webviewInstallMode": { "type": "skip" } },
+    "shortDescription": "A local animated pit crew for coding agents",
+    "category": "DeveloperTool"
+  }
+}

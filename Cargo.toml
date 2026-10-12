@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/pit-stop-core", "crates/pit-stop-hook", "crates/pit-stop-integrations"]
+members = ["crates/pit-stop-core", "crates/pit-stop-hook", "crates/pit-stop-integrations", "apps/desktop/src-tauri"]
 resolver = "2"
 
 [workspace.package]
