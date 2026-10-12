@@ -1,0 +1,12 @@
+import { execFileSync } from 'node:child_process';
+import { copyFileSync, mkdirSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const cargo = process.env.CARGO ?? 'cargo';
+execFileSync(cargo, ['build', '--locked', '--release', '-p', 'pit-stop-hook'], { cwd: root, stdio: 'inherit' });
+const extension = process.platform === 'win32' ? '.exe' : '';
+const destination = resolve(root, 'apps/desktop/src-tauri/binaries');
+mkdirSync(destination, { recursive: true });
+copyFileSync(resolve(root, `target/release/pit-stop-hook${extension}`), resolve(destination, `pit-stop-hook${extension}`));
+console.log('Packaged local hook executable.');
