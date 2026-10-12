@@ -1,5 +1,11 @@
 import { expect, test, type Page } from "@playwright/test";
 
+test.use({
+  video: process.env.PIT_STOP_RECORD_DEMO
+    ? { mode: "on", size: { width: 800, height: 450 } }
+    : "off",
+});
+
 const epoch = new Date("2026-10-12T12:00:00.000Z");
 type Preset = "compact" | "expanded" | "capture";
 const sizes = {
@@ -170,12 +176,12 @@ test("pause freezes the active crew and resuming advances the demo", async ({
 // Ordinary visual checks retain their fast, deterministic screenshot clock.
 test.describe("demo recording", () => {
   test.skip(!process.env.PIT_STOP_RECORD_DEMO, "Set PIT_STOP_RECORD_DEMO=1 to record");
-  test.use({ video: { mode: "on", size: { width: 800, height: 450 } } });
   test("capture the full demo with its normal animation clock", async ({ page }) => {
     const audit = await prepare(page, "capture", false, false);
+    await page.setViewportSize({ width: 800, height: 450 });
     await page.clock.resume();
     await expect(page.locator(".activity-title")).toHaveText("Session ended", {
-      timeout: 20_000,
+      timeout: 35_000,
     });
     expect(audit.remoteRequests).toEqual([]);
     expect(audit.errors).toEqual([]);

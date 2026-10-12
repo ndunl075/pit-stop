@@ -124,6 +124,13 @@ describe("deterministic crew choreography", () => {
     motion.reset();
     expect(motion.hasTail(1000)).toBe(false);
     expect(motion.size).toBe(0);
+    // Fallback operations reuse a string key when tools restart rapidly.
+    for (let i = 0; i < 100; i++) {
+      motion.sync([], new Set(["edit"]), i * 2);
+      motion.sync([], noRunning, i * 2 + 1);
+    }
+    motion.sync([], new Set(["edit"]), 200);
+    expect(motion.size).toBeLessThanOrEqual(64);
   });
   it("renders reduced-motion work poses without gait, rotation, or time oscillation", () => {
     const motion = new MotionTimeline();

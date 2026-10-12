@@ -79,7 +79,7 @@ export class MotionTimeline {
     // channels; the scheduler already bounds simultaneous resource users.
     while (this.gestures.length > 64) {
       const index = this.gestures.findIndex(
-        (gesture) => !this.current.has(gesture.key),
+        (gesture) => this.current.get(gesture.key) !== gesture,
       );
       if (index < 0) break;
       this.gestures.splice(index, 1);
