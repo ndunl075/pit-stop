@@ -68,7 +68,10 @@ fn run(args: &[String], cursor: bool, explicit_pre: bool) -> io::Result<()> {
         }
         data
     };
-    let Ok(input) = serde_json::from_slice::<serde_json::Value>(&bytes) else {
+    // Cursor's Windows PowerShell pipeline can prefix native stdin with a UTF-8 BOM.
+    // Keep the input limit above intact and accept only that optional leading marker.
+    let json = bytes.strip_prefix(b"\xEF\xBB\xBF").unwrap_or(&bytes);
+    let Ok(input) = serde_json::from_slice::<serde_json::Value>(json) else {
         return Ok(());
     };
     if cursor

@@ -12,7 +12,7 @@ This file records observed checks, not compatibility promises.
 | Receiver load | 6,000 authenticated requests in 60.01 seconds (100/s); bounded 200 history and 8 sessions; no retained active tools or rejected requests |
 | Helper latency | Release Cursor launcher tested with Unicode, spaces and apostrophe path; observed p95 68 ms in 10 launches |
 | Shutdown/relaunch | Installed process opens/responds; normal close removes private runtime descriptor. Relaunch preserves active credentials; three simultaneous launches leave exactly one responding instance. |
-| Agent compatibility | Real Claude Code 2.1.287 generated-config session delivered session/read/edit/shell-failure/completion/end events with HTTP 202; malformed-runtime read still succeeded. Real Codex CLI 0.159.3 completion invoked the release helper once and was accepted with HTTP 202. Cursor live acceptance pending. |
+| Agent compatibility | Real Claude Code 2.1.287 generated-config session delivered session/read/edit/shell-failure/completion/end events with HTTP 202; malformed-runtime read still succeeded. Real Codex CLI 0.159.3 completion invoked the release helper once and was accepted with HTTP 202. Real Cursor CLI 2026.10.01-e373342 delivered session start, inspect start/success and session end with HTTP 202 after the Windows BOM fix. |
 | Hosted Windows | CI run 38254469355 passed all 21 frontend tests, five visual tests, 45 regular native tests, optimized helper and native release build, including elevated runtime ownership regression. |
 | Runtime network | App-owned WebView2 browser process opened two remote HTTPS connections to Microsoft IP addresses. Fresh-profile/closed-proxy test did not eliminate them. Accepted v1 exception: retain Tauri with this disclosed limitation; original strict zero-remote requirement remains unsatisfied. |
 | Recording | Normal-clock full-demo browser recording passed with no page errors or remote app requests; exported as the README's 25 fps GIF. Export rate is not a renderer FPS benchmark. |
@@ -37,14 +37,21 @@ $0.117 of model usage; this belongs to the user's separate agent account.
 
 The official Cursor Windows CLI 2026.10.01-e373342 was downloaded and extracted
 into an isolated validation directory without running its global installer or
-changing PATH. Its status command reports unauthenticated; the editor's existing
-login is not shared with that CLI. No Cursor model session was started. Real
-Cursor validation requires the user's interactive login to the existing account;
-fixture/launcher evidence must not be promoted to live verification.
+changing PATH. After signing into the existing account, the first two sessions
+identified project-hook root discovery and a UTF-8 BOM in the official Windows
+payload pipeline. The helper now accepts that optional leading marker after
+enforcing the unchanged input bound. An exact-pipeline synthetic preflight and
+a third real Read-only session delivered session start, inspect start,
+inspect success and session end to the desktop app with HTTP 202. The fixture
+remained unchanged and Cursor exited zero. Earlier genuine edit/failure callbacks
+executed successfully but their delivery preceded the fix and is not certified.
+No stop callback occurred, so Cursor turn completion is not verified. Persistent
+provider configuration was unchanged; disposable transcripts and private runtime
+credentials were removed. Only fixed event enums and aggregate results remain.
 
-The Windows installer rebuilt with the fluid animation changes is 2,557,350
+The Windows installer rebuilt with fluid animations and the Cursor fix is 2,553,719
 bytes. Its SHA-256 is
-`ABF9EBDEBC7542752F3CB3C72E0BC599813231A1082F46C0FD820469476D371C`.
+`EFB3A825E88C677F1CCE2D259A64FC56597009A8A830E553A6C736B816350D3D`.
 Installed authentication checks returned 202 for valid events, 401 for invalid
 credentials and 403 for browser Origin requests. Test uninstall removed the app.
 
