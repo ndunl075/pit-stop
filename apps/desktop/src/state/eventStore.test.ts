@@ -87,6 +87,9 @@ describe("bounded session reducer", () => {
       0,
     );
     expect(s.sessions.get("codex:one")?.tools.size).toBe(0);
-    expect(sessionStatus(s.sessions.get("codex:one"))).toBe("Finishing");
+    expect(sessionStatus(s.sessions.get("codex:one"), 0)).toBe("Finishing");
+    expect(sessionStatus(s.sessions.get("codex:one"), 1599)).toBe("Finishing");
+    expect(sessionStatus(s.sessions.get("codex:one"), 1600)).toBe("Waiting");
+    expect(s.sessions.get("codex:one")?.tools.size).toBe(0);
   });
 });

@@ -130,10 +130,11 @@ export function expireTools(state: EventState, now: number): EventState {
 }
 export function sessionStatus(
   s: Session | undefined,
+  now = Date.now(),
 ): "Disconnected" | "Waiting" | "Working" | "Finishing" | "Unknown" {
   if (!s) return "Disconnected";
   if (s.ended) return "Waiting";
-  if (s.finished) return "Finishing";
+  if (s.finished) return now - s.lastAt < 1600 ? "Finishing" : "Waiting";
   if ([...s.tools.values()].some((t) => t.state === "running"))
     return "Working";
   if ([...s.tools.values()].some((t) => t.state === "unknown"))
