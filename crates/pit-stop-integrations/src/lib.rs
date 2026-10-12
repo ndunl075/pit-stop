@@ -134,7 +134,7 @@ pub fn preview(
         } else if source == "cursor" {
             "Local sessions only. Provider version and live hook compatibility unverified; restart Cursor after applying. Pit Stop never enables failClosed."
         } else {
-            "Uses documented command/args exec-form hooks. Provider version and live hook compatibility unverified; restart Claude Code after applying."
+            "Uses compatible command-string hooks (Git Bash on Windows). Restart Claude Code after applying; verify your installed provider version with a local session."
         }.into()),
     })
 }
@@ -163,10 +163,21 @@ fn cursor_command(helper: &str, event: &str) -> Result<String> {
 
 fn owned_entry(source: &str, helper: &str, event: &str) -> Result<Value> {
     if source == "claude" {
-        // Exec form: paths are literal executable paths, never shell input.
-        Ok(
-            json!({"matcher":".*", "hooks":[{"type":"command", "command":helper, "args":["hook", "--source", "claude"], "timeout":1}]}),
-        )
+        #[cfg(windows)]
+        let command = {
+            if helper.contains(['"', '%', '!', '$', '`']) {
+                return Err(Error::Invalid("Claude helper path contains unsupported shell characters; install Pit Stop in a simple per-user path".into()));
+            }
+            format!("\"{}\" hook --source claude", helper.replace('\\', "/"))
+        };
+        #[cfg(not(windows))]
+        let command = format!("'{}' hook --source claude", helper.replace('\'', "'\\''"));
+        let mut handler = json!({"type":"command","command":command,"timeout":1});
+        #[cfg(windows)]
+        {
+            handler["shell"] = json!("bash");
+        }
+        Ok(json!({"matcher":".*","hooks":[handler]}))
     } else {
         Ok(json!({"command":cursor_command(helper, event)?, "timeout":1}))
     }
@@ -213,6 +224,28 @@ fn merge_json(source: &str, input: &str, helper: &str, disconnect: bool) -> Resu
             .as_array_mut()
             .ok_or_else(|| Error::Invalid(format!("{event} hooks must be an array")))?;
         let entry = owned_entry(source, helper, event)?;
+        let legacy_claude = json!({"matcher":".*", "hooks":[{"type":"command", "command":helper, "args":["hook", "--source", "claude"], "timeout":1}]});
+        if source == "claude" {
+            if disconnect {
+                array.retain(|existing| existing != &legacy_claude);
+            } else {
+                for existing in array.iter_mut() {
+                    if existing == &legacy_claude {
+                        *existing = entry.clone();
+                    } else if existing.get("matcher").and_then(Value::as_str) == Some(".*") {
+                        if let Some(handlers) =
+                            existing.get_mut("hooks").and_then(Value::as_array_mut)
+                        {
+                            for handler in handlers {
+                                if handler == &legacy_claude["hooks"][0] {
+                                    *handler = entry["hooks"][0].clone();
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
         #[cfg(windows)]
         if source == "cursor" {
             let legacy = json!({"command":format!("powershell.exe -NoProfile -NonInteractive -Command \"& '{}' hook --source cursor --event {}\"", helper.replace('\'', "''"), event),"timeout":1});
@@ -237,12 +270,24 @@ fn merge_json(source: &str, input: &str, helper: &str, disconnect: bool) -> Resu
                     if group.get("matcher").and_then(Value::as_str) == Some(".*") {
                         if let Some(handlers) = group.get_mut("hooks").and_then(Value::as_array_mut)
                         {
-                            handlers.retain(|handler| handler != &entry["hooks"][0]);
+                            handlers.retain(|handler| {
+                                handler != &entry["hooks"][0]
+                                    && handler != &legacy_claude["hooks"][0]
+                            });
                         }
                     }
                 }
             }
-        } else if !array.contains(&entry) {
+        } else if !array.contains(&entry)
+            && !(source == "claude"
+                && array.iter().any(|group| {
+                    group.get("matcher").and_then(Value::as_str) == Some(".*")
+                        && group
+                            .get("hooks")
+                            .and_then(Value::as_array)
+                            .is_some_and(|handlers| handlers.contains(&entry["hooks"][0]))
+                }))
+        {
             array.push(entry);
         }
     }
