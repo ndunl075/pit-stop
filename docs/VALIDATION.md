@@ -49,9 +49,9 @@ No stop callback occurred, so Cursor turn completion is not verified. Persistent
 provider configuration was unchanged; disposable transcripts and private runtime
 credentials were removed. Only fixed event enums and aggregate results remain.
 
-The Windows installer rebuilt with the fluid animation changes is 2,557,350
+The Windows installer rebuilt with fluid animations and the Cursor fix is 2,553,719
 bytes. Its SHA-256 is
-`ABF9EBDEBC7542752F3CB3C72E0BC599813231A1082F46C0FD820469476D371C`.
+`EFB3A825E88C677F1CCE2D259A64FC56597009A8A830E553A6C736B816350D3D`.
 Installed authentication checks returned 202 for valid events, 401 for invalid
 credentials and 403 for browser Origin requests. Test uninstall removed the app.
 
