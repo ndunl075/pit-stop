@@ -1,9 +1,9 @@
 # Pit Stop
 
 A tiny animated pit crew for your coding agent. Original local artwork,
-reversible hooks, no accounts, telemetry, cloud service or API keys.
+reversible hooks, no Pit Stop accounts, cloud service or API keys.
 
-![Pit Stop demo](docs/demo.jpg)
+![Pit Stop demo](docs/demo.gif)
 
 Windows 11 is the first supported build target. Claude Code and Cursor
 adapters accept documented tool hooks; their real-agent compatibility is
@@ -63,6 +63,12 @@ pnpm --filter desktop tauri build
 Tauri. `pnpm build` only builds the frontend. The native release contains
 the hook helper and local scene assets. macOS/Linux are not validated release
 targets. No automatic update checks run at application startup.
+
+Pit Stop's code and assets use local communication only. Windows WebView2
+is a Microsoft runtime with its own diagnostic behavior. Background HTTPS
+connections were observed from its browser process on the development host;
+Pit Stop cannot promise zero remote connections for that system component.
+See [security boundaries](SECURITY.md) before relying on strict offline isolation.
 
 ## Verification and privacy
 
