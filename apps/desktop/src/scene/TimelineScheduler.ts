@@ -6,7 +6,11 @@ export interface Scheduled {
   count: number;
   started: number;
   finishAt: number | null;
+  expiresAt: number;
+  pendingTools: Set<string>;
 }
+const toolIdentity = (event: PitStopEvent) =>
+  `${event.source}:${event.session_key}:${event.tool_key ?? event.event_id}`;
 /** Presentation time is supplied by the renderer, so pause and deterministic captures agree. */
 export class TimelineScheduler {
   queue: Scheduled[] = [];
@@ -23,21 +27,32 @@ export class TimelineScheduler {
     if (event.kind === "tool.finish") {
       const existing = [...this.active, ...this.queue].find(
         (x) =>
-          x.event.tool_key === event.tool_key &&
-          x.event.source === event.source &&
-          x.event.session_key === event.session_key &&
-          x.event.kind === "tool.start",
+          event.tool_key !== null && x.pendingTools.has(toolIdentity(event)),
       );
-      if (existing) existing.finishAt = now;
+      if (existing) {
+        existing.pendingTools.delete(toolIdentity(event));
+        if (!existing.pendingTools.size) existing.finishAt = now;
+      }
       if (existing && event.outcome !== "failure") return;
     }
-    const clip = clipFor(event);
-    if (clip.id === "inspect") {
+    const base = clipFor(event);
+    const clip =
+      event.kind === "tool.finish"
+        ? { ...base, priority: Math.max(base.priority, 6) }
+        : base;
+    if (clip.id === "inspect" && event.kind === "tool.start") {
       const same = [...this.queue, ...this.active].find(
-        (x) => x.clip.id === "inspect",
+        (x) =>
+          x.clip.id === "inspect" &&
+          x.event.kind === "tool.start" &&
+          x.finishAt === null,
       );
       if (same) {
         same.count++;
+        same.pendingTools.add(toolIdentity(event));
+        while (same.pendingTools.size > 200)
+          same.pendingTools.delete(same.pendingTools.values().next().value!);
+        same.expiresAt = now + 120_000;
         this.coalesced++;
         return;
       }
@@ -48,6 +63,10 @@ export class TimelineScheduler {
       count: 1,
       started: now,
       finishAt: event.kind === "tool.finish" ? now : null,
+      expiresAt: now + 120_000,
+      pendingTools: new Set(
+        event.kind === "tool.start" ? [toolIdentity(event)] : [],
+      ),
     };
     if (clip.id === "release" || clip.id === "end") {
       this.queue = [];
@@ -70,11 +89,7 @@ export class TimelineScheduler {
   }
   tick(now: number) {
     this.active = this.active.filter((x) => {
-      const elapsed = now - x.started;
-      return (
-        elapsed < x.clip.duration &&
-        (x.finishAt === null || elapsed < x.clip.min || now - x.finishAt < 350)
-      );
+      return now < this.deadline(x);
     });
     for (let i = 0; i < this.queue.length; ) {
       const x = this.queue[i];
@@ -91,5 +106,24 @@ export class TimelineScheduler {
       this.active.push(x);
     }
     return this.active;
+  }
+  private deadline(x: Scheduled) {
+    if (x.pendingTools.size && x.finishAt === null) return x.expiresAt;
+    if (x.finishAt !== null)
+      return Math.max(x.started + x.clip.min, x.finishAt + 350);
+    return x.started + x.clip.duration;
+  }
+  nextTransition(now: number): number | null {
+    return this.active.length
+      ? Math.max(1, Math.min(...this.active.map((x) => this.deadline(x))) - now)
+      : null;
+  }
+  syncOperations(running: ReadonlySet<string>, now: number) {
+    for (const x of [...this.active, ...this.queue]) {
+      if (x.pendingTools.size && !running.has(x.event.operation)) {
+        x.pendingTools.clear();
+        x.finishAt = now;
+      }
+    }
   }
 }
