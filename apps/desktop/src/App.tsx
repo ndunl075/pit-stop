@@ -23,6 +23,11 @@ import { Dialog } from "./components/Dialog";
 import { IntegrationsScreen } from "./components/IntegrationsScreen";
 import { Diagnostics } from "./components/Diagnostics";
 type Panel = "connect" | "settings" | "diagnostics" | null;
+// Visual tests exercise native overlay sizing without pretending native APIs exist.
+// Vite replaces this with false in ordinary development and production builds.
+const overlayPreview = import.meta.env.MODE === "visual-test";
+const snapshotTimeline =
+  overlayPreview && new URLSearchParams(window.location.search).has("snapshot");
 export default function App() {
   const [settings, setSettings] = useState<Settings>(defaults),
     [state, setState] = useState<EventState>(emptyState),
@@ -120,11 +125,56 @@ export default function App() {
   useEffect(() => {
     scene.current?.update({
       reduced,
-      paused,
+      paused: paused || snapshotTimeline,
       fps: settings.fps,
       theme: settings.theme,
     });
   }, [reduced, paused, settings.fps, settings.theme, ready]);
+  useEffect(() => {
+    if (!snapshotTimeline || !ready) return;
+    const target = host.current!;
+    // Test-only seek replays the real reducer, scheduler and renderer using fixture
+    // timestamps. It avoids React/RAF startup jitter in moving-car image baselines.
+    const seek = (input: Event) => {
+      const at = (input as CustomEvent<unknown>).detail;
+      if (
+        typeof at !== "number" ||
+        !Number.isFinite(at) ||
+        at < 0 ||
+        at >= DEMO_DURATION
+      )
+        return;
+      const pit = scene.current!;
+      pit.reset();
+      let next = emptyState();
+      for (
+        let i = 0;
+        i < demoSequence.length && demoSequence[i].at <= at;
+        i++
+      ) {
+        const entry = demoEvent(i, 0, epoch.current);
+        pit.frame(demoSequence[i].at, false);
+        pit.event(entry, demoSequence[i].at);
+        pit.frame(demoSequence[i].at, false);
+        next = reduceEvent(next, entry, epoch.current + demoSequence[i].at);
+      }
+      pit.runningOperations = new Set(
+        [...(next.sessions.get("claude:demo")?.tools.values() ?? [])]
+          .filter((tool) => tool.state === "running")
+          .map((tool) => tool.event.operation),
+      );
+      pit.frame(at, true);
+      stateRef.current = next;
+      setState(next);
+      setTime(Math.floor(at / 1000) * 1000);
+    };
+    window.addEventListener("pit-stop:visual-seek", seek);
+    target.dataset.visualReady = "true";
+    return () => {
+      window.removeEventListener("pit-stop:visual-seek", seek);
+      delete target.dataset.visualReady;
+    };
+  }, [ready]);
   useEffect(() => {
     if (scene.current)
       scene.current.runningOperations = new Set(
@@ -153,7 +203,7 @@ export default function App() {
     };
   }, []);
   useEffect(() => {
-    if (!ready) return;
+    if (!ready || snapshotTimeline) return;
     let previous = performance.now();
     const timer = setInterval(() => {
       const now = performance.now(),
@@ -282,7 +332,7 @@ export default function App() {
   }
   return (
     <main
-      className={`app theme-${settings.theme} preset-${settings.preset} ${native ? "native" : "browser"}`}
+      className={`app theme-${settings.theme} preset-${settings.preset} ${native || overlayPreview ? "native" : "browser"}`}
     >
       <div className="browser-heading">
         <a className="wordmark" href="#" onClick={(e) => e.preventDefault()}>
