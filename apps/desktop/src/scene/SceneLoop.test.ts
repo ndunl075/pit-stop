@@ -22,6 +22,35 @@ beforeEach(() => {
 });
 afterEach(() => vi.useRealTimers());
 describe("power-aware presentation loop", () => {
+  it.each([30, 60] as const)("keeps %i fps cadence on a 144 Hz display", (fps) => {
+    let callback: ((now: number) => void) | null = null;
+    let frame = 0;
+    const draws: number[] = [];
+    const loop = new SceneLoop(
+      (clock) => {
+        draws.push(clock);
+        return { animate: true, wakeAfter: null };
+      },
+      {
+        ...environment,
+        requestFrame: (next) => { callback = next; return ++frame; },
+        cancelFrame: () => { callback = null; },
+      },
+    );
+    loop.configure({ hidden: false, paused: false, fps });
+    for (let tick = 1; tick <= 144; tick++) {
+      wall = tick * 1000 / 144;
+      const next = callback;
+      callback = null;
+      next?.(wall);
+    }
+    expect(draws.length).toBeGreaterThanOrEqual(fps - 1);
+    expect(draws.length).toBeLessThanOrEqual(fps);
+    for (let i = 1; i < draws.length; i++) {
+      expect(draws[i] - draws[i - 1]).toBeLessThanOrEqual(1000 / fps + 7);
+    }
+    loop.destroy();
+  });
   it("renders once at rest and schedules no idle polling", () => {
     const draw = vi.fn(() => ({ animate: false, wakeAfter: null }));
     const loop = new SceneLoop(draw, environment);
