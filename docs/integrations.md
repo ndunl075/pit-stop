@@ -15,9 +15,15 @@ installed provider version**. Restart the agent after configuration changes and
 use the app's test event to check local delivery. Remote/cloud agent sessions
 cannot reach this desktop's loopback receiver and are unsupported.
 
-Claude uses the documented `command` + `args` exec form: the absolute helper path
-is a literal executable path, including Unicode and spaces; no shell interprets
-it. Cursor's documented API accepts a command string. Windows hooks explicitly
+Claude uses documented command-string hooks: real Claude Code 2.1.287 silently
+ignored the newer `args` exec-form hook configuration during validation. On
+Windows the installer explicitly selects Git Bash (`shell: "bash"`) and quotes
+the absolute helper path, including Unicode, spaces and apostrophes. Git Bash is
+required for this validated Windows configuration; a PowerShell-only Claude
+installation is not verified. POSIX paths use single-quote shell escaping.
+Exact prior exec-form entries are migrated in place and recognized on disconnect,
+including groups extended with third-party handlers. Modified entries are kept.
+Cursor's documented API accepts a command string. Windows Cursor hooks
 quote the absolute `.exe` path directly, avoiding a second PowerShell startup
 for every event. Paths with characters whose interpretation differs across Windows
 shell layers are refused with an actionable message. Unicode, spaces and
@@ -76,7 +82,9 @@ valid when replacement fails; any successfully saved backup is retained.
 ## Official references checked
 
 - [Claude Code hooks reference](https://code.claude.com/docs/en/hooks): command
-  exec form, hook event names, user-level settings and nonblocking failure defaults.
+  strings, explicit shell selection, hook event names, user-level settings and
+  nonblocking failure defaults. Current exec-form documentation does not establish
+  support in older installed versions.
 - [Cursor hooks](https://cursor.com/docs/hooks): version 1 configuration, generic
   hooks, timeouts, permission output and failClosed behavior.
 - [Official OpenAI documentation: Codex advanced configuration](https://learn.chatgpt.com/docs/config-file/config-advanced):
@@ -100,3 +108,25 @@ On the development Windows host, ten optimized-release helper invocations took
 PowerShell wrapper took 713–1,204 ms just to start PowerShell and exit, exceeding
 the configured one-second timeout in several samples. These are local samples,
 not guarantees across computers or a real Cursor session validation.
+
+## Real Claude validation
+
+On October 12, 2026, Claude Code 2.1.287 ran a small isolated session using
+installer-generated command-string configuration with an explicit Bash shell.
+The temporary executable wrapper lived at a Unicode/space/apostrophe path and
+forwarded unchanged provider stdin to the optimized release helper, adding only
+the test runtime-descriptor argument. A private loopback proxy forwarded the
+helper's canonical events to the running desktop app and recorded HTTP 202 for
+session start, Read start/success, Edit start/success, intentional harmless shell
+failure, turn completion and session end. The fixture edit succeeded and Claude
+exited zero. A second tiny Read session with a deliberately malformed private
+runtime descriptor still succeeded and the helper exited zero without delivery.
+The user's persistent agent configurations were not modified, and temporary
+runtime descriptors were removed. Evidence stores only fixed event enums/status
+codes and aggregate session results, not provider payloads or credentials.
+
+This verifies that narrow Claude flow on the tested Windows/Git Bash installation;
+it does not certify every provider version, subagent flow, PowerShell-only setup,
+or renderer behavior. Real Cursor validation is pending: the installed editor
+launcher is not the separately installed `agent` CLI, and no new CLI or account
+setup was performed for validation.
